@@ -3,6 +3,7 @@ SAF, short for Student Accommodation Finder, is a platform that connects student
 Finding student accommodation is often a slow, informal process involving word of mouth, outdated listings and no clear way to check real time bed availability. SAF solves that by giving students a single place to search for accommodation, view details, and apply while giving res owners a simple way to list properties, keep bed counts accurate and manage applicants.
 
 |Features|
+
 For students:
 - Browse and search available accommodation listings.
 - View property details, photos, and number of beds available.

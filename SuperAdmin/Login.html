@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in — Super Admin Console</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body class="login-page">
+    <main class="auth-shell">
+        <div class="auth-brand">
+            <span class="auth-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span>
+            <span>Super Admin Console</span>
+        </div>
+
+        <section class="auth-card" aria-labelledby="loginTitle">
+            <h1 id="loginTitle">Welcome back</h1>
+            <form id="loginForm" novalidate>
+                <label for="email">Email address</label>
+                <input id="email" name="email" type="email" autocomplete="username" required>
+
+                <label for="password">Password</label>
+                <div class="password-field">
+                    <input id="password" name="password" type="password" autocomplete="current-password" required>
+                    <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" aria-pressed="false">◉</button>
+                </div>
+
+                <button type="submit">Sign in</button>
+                <p class="auth-message" id="loginMessage" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+
+    <script src="Shared.js"></script>
+    <script>
+        (function () {
+            var savedAdmin = loadJSON('superAdminProfile', null) || {};
+            var credentials = {
+                name: 'Evidence Mogale',
+                email: 'superadmin8@gmail.com',
+                password: '@Superadmin8',
+                role: 'SUPER_ADMIN'
+            };
+            credentials.name = savedAdmin.name || credentials.name;
+            credentials.email = savedAdmin.email || credentials.email;
+            var form = document.getElementById('loginForm');
+            var email = document.getElementById('email');
+            var password = document.getElementById('password');
+            var passwordToggle = document.getElementById('passwordToggle');
+            var message = document.getElementById('loginMessage');
+
+            if (getAuthenticatedUser()) {
+                window.location.replace('Dashboard.html');
+                return;
+            }
+
+            passwordToggle.addEventListener('click', function () {
+                var showing = password.type === 'text';
+                password.type = showing ? 'password' : 'text';
+                passwordToggle.textContent = showing ? '◉' : '◉̸';
+                passwordToggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+                passwordToggle.setAttribute('aria-pressed', String(!showing));
+            });
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var enteredEmail = email.value.trim().toLowerCase();
+                var enteredPassword = password.value;
+
+                if (!enteredEmail || !enteredPassword) {
+                    message.textContent = 'Enter your email address and password.';
+                    return;
+                }
+                if (enteredEmail !== credentials.email || enteredPassword !== credentials.password) {
+                    message.textContent = 'The email address or password is incorrect.';
+                    password.select();
+                    return;
+                }
+
+                saveJSON('superAdminSession', {
+                    name: credentials.name,
+                    email: credentials.email,
+                    role: credentials.role,
+                    signedInAt: new Date().toISOString()
+                });
+                seedDefaults();
+                addLog('login', 'Evidence Mogale signed in to the Super Admin Console', 'SUPER_ADMIN');
+                window.location.replace('Dashboard.html');
+            });
+        }());
+    </script>
+</body>
+</html>

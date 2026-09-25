@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deleted accounts — Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand"><a href="dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div>
+        <div class="user-info">
+            <span>Signed in as</span>
+            <span class="badge" id="currentRoleDisplay">Super Admin</span>
+            <div class="menu-container">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <div class="layout">
+        <nav class="sidebar">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="active.html">Active users</a>
+            <a href="deleted.html" class="active" aria-current="page">Deleted accounts</a>
+            <a href="activity.html">Activity log</a>
+            <a href="Res.html">Registered residences</a>
+            <a href="RevRep.html">Reviews &amp; reports</a>
+            <a href="DataProcessing.html">Data checks</a>
+            <a href="Settings.html">Settings</a>
+            <a href="Reports.html">Reports</a>
+        </nav>
+
+        <div class="content">
+            <h1>Deleted accounts</h1>
+
+            <div class="page-tabs" role="tablist" aria-label="Deleted items">
+                <button class="page-tab active" id="accountsTab" type="button" role="tab" aria-selected="true" aria-controls="accountsPanel">Deleted accounts</button>
+                <button class="page-tab" id="suspendedTab" type="button" role="tab" aria-selected="false" aria-controls="suspendedPanel">Suspended residences</button>
+            </div>
+            <div id="accountsPanel" role="tabpanel" aria-labelledby="accountsTab">
+            <section class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Previous role</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deletedTableBody"></tbody>
+                </table>
+                <p id="noDeletedMsg" class="empty-note hidden">No deleted accounts yet.</p>
+                <p class="count-line" id="deletedCountLine"></p>
+            </section>
+            </div>
+            <div id="suspendedPanel" role="tabpanel" aria-labelledby="suspendedTab" hidden>
+            <section class="card">
+                <h2>Suspended residences</h2>
+                <div class="table-scroll"><table><thead><tr><th>Residence</th><th>Registration ID</th><th>Owner</th><th>Contact</th><th>Action</th></tr></thead><tbody id="suspendedResidenceBody"></tbody></table></div>
+                <p id="noSuspendedMsg" class="empty-note hidden">No residences are suspended.</p>
+                <p class="count-line" id="suspendedCountLine"></p>
+            </section>
+            </div>
+
+            <footer>
+                Super Admin Console &middot; <span id="currentDate"></span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+
+        function renderDeleted() {
+            var tbody = document.getElementById('deletedTableBody');
+            var noMsg = document.getElementById('noDeletedMsg');
+            var countLine = document.getElementById('deletedCountLine');
+            var deleted = loadDeleted();
+            tbody.innerHTML = '';
+
+            if (deleted.length === 0) {
+                noMsg.classList.remove('hidden');
+                countLine.textContent = '';
+                return;
+            }
+            noMsg.classList.add('hidden');
+
+            for (var i = 0; i < deleted.length; i++) {
+                var acc = deleted[i];
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td>' + acc.id + '</td>' +
+                    '<td>' + escapeHtml(acc.name) + '</td>' +
+                    '<td><span class="badge ' + roleClass(acc.role) + '">' + roleLabel(acc.role) + '</span></td>' +
+                    '<td>' +
+                        '<button class="small approve" onclick="restoreAccount(' + acc.id + ')">Restore</button>' +
+                        '<button class="small danger" onclick="deleteForever(' + acc.id + ')">Delete forever</button>' +
+                    '</td>';
+                tbody.appendChild(tr);
+            }
+
+            countLine.textContent = deleted.length + (deleted.length === 1 ? ' account' : ' accounts');
+        }
+
+        function restoreAccount(id) {
+            var deleted = loadDeleted();
+            var target = null;
+            for (var i = 0; i < deleted.length; i++) {
+                if (deleted[i].id === id) { target = deleted[i]; break; }
+            }
+            if (!target) return;
+
+            var users = loadUsers();
+            users.push({ id: target.id, name: target.name, role: target.role });
+            saveUsers(users);
+
+            var remaining = [];
+            for (var j = 0; j < deleted.length; j++) {
+                if (deleted[j].id !== id) remaining.push(deleted[j]);
+            }
+            saveDeleted(remaining);
+
+            addLog('restore', 'Restored account **' + target.name + '**', target.role);
+            renderDeleted();
+        }
+
+        function deleteForever(id) {
+            var deleted = loadDeleted();
+            var target = null;
+            for (var i = 0; i < deleted.length; i++) {
+                if (deleted[i].id === id) { target = deleted[i]; break; }
+            }
+            if (!target) return;
+
+            showConfirmation('Permanently delete "' + target.name + '"? This cannot be undone.', function () {
+                var remaining = [];
+                for (var j = 0; j < deleted.length; j++) {
+                    if (deleted[j].id !== id) remaining.push(deleted[j]);
+                }
+                saveDeleted(remaining);
+                addLog('delete', 'Permanently deleted **' + target.name + '**', target.role);
+                renderDeleted();
+            });
+        }
+
+        function renderSuspendedResidences() {
+            var body = document.getElementById('suspendedResidenceBody');
+            var noMsg = document.getElementById('noSuspendedMsg');
+            var countLine = document.getElementById('suspendedCountLine');
+            var reses = loadReses().filter(function (res) { return res.status === 'Suspended'; });
+            body.innerHTML = '';
+            noMsg.classList.toggle('hidden', reses.length !== 0);
+            for (var i = 0; i < reses.length; i++) {
+                var res = reses[i], row = document.createElement('tr');
+                row.innerHTML = '<td>' + escapeHtml(res.name) + '</td><td>#' + res.id + '</td><td>' + escapeHtml(res.ownerName) + '</td><td><a href="mailto:' + encodeURIComponent(res.ownerEmail) + '">' + escapeHtml(res.ownerEmail) + '</a></td><td><button class="small approve" onclick="unsuspendResidence(' + res.id + ')">Unsuspend</button><button class="small danger" onclick="deleteResidenceForever(' + res.id + ')">Delete forever</button></td>';
+                body.appendChild(row);
+            }
+            countLine.textContent = reses.length ? reses.length + (reses.length === 1 ? ' suspended residence' : ' suspended residences') : '';
+        }
+
+        function unsuspendResidence(id) {
+            var reses = loadReses(), target = null;
+            for (var i = 0; i < reses.length; i++) if (reses[i].id === id) { target = reses[i]; break; }
+            if (!target) return;
+            target.status = 'Approved';
+            saveReses(reses);
+            addLog('restore', 'Unsuspended residence **' + target.name + '**', 'RES_OWNER');
+            renderSuspendedResidences();
+        }
+
+        function deleteResidenceForever(id) {
+            var reses = loadReses(), target = null;
+            for (var i = 0; i < reses.length; i++) if (reses[i].id === id) { target = reses[i]; break; }
+            if (!target) return;
+            showConfirmation('Permanently delete residence "' + target.name + '"? This cannot be undone.', function () {
+                saveReses(reses.filter(function (res) { return res.id !== id; }));
+                addLog('delete', 'Permanently deleted residence **' + target.name + '**', 'RES_OWNER');
+                renderSuspendedResidences();
+            });
+        }
+
+        function showDeletedTab(tab) {
+            var suspended = tab === 'suspended';
+            document.getElementById('accountsPanel').hidden = suspended;
+            document.getElementById('suspendedPanel').hidden = !suspended;
+            document.getElementById('accountsTab').classList.toggle('active', !suspended);
+            document.getElementById('suspendedTab').classList.toggle('active', suspended);
+            document.getElementById('accountsTab').setAttribute('aria-selected', String(!suspended));
+            document.getElementById('suspendedTab').setAttribute('aria-selected', String(suspended));
+            if (suspended) renderSuspendedResidences();
+        }
+
+        setupTopbar();
+        seedDefaults();
+        setupFooterDate();
+        renderDeleted();
+        renderSuspendedResidences();
+        document.getElementById('accountsTab').addEventListener('click', function () { showDeletedTab('accounts'); });
+        document.getElementById('suspendedTab').addEventListener('click', function () { showDeletedTab('suspended'); });
+    </script>
+</body>
+</html>

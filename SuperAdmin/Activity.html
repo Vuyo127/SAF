@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity log — Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand"><a href="dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div>
+        <div class="user-info">
+            <span>Signed in as</span>
+            <span class="badge" id="currentRoleDisplay">Super Admin</span>
+            <div class="menu-container">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <div class="layout">
+        <nav class="sidebar">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="active.html">Active users</a>
+            <a href="deleted.html">Deleted accounts</a>
+            <a href="activity.html" class="active" aria-current="page">Activity log</a>
+            <a href="Res.html">Registered residences</a>
+            <a href="RevRep.html">Reviews &amp; reports</a>
+            <a href="DataProcessing.html">Data processing</a>
+            <a href="Settings.html">Settings</a>
+            <a href="Reports.html">Reports</a>
+        </nav>
+
+        <div class="content">
+            <h1>Activity log</h1>
+
+            <div class="page-tabs" role="tablist" aria-label="Activity views">
+                <button class="page-tab active" id="logTab" type="button" role="tab" aria-selected="true" aria-controls="logPanel">Activity log</button>
+                <button class="page-tab" id="graphTab" type="button" role="tab" aria-selected="false" aria-controls="graphPanel">Stats</button>
+                
+            </div>
+
+            <div id="logPanel" role="tabpanel" aria-labelledby="logTab">
+                <section class="card">
+                    <ul id="activityLog" class="activity-log"></ul>
+                    <button id="clearLogButton" class="danger" onclick="clearLogs()">Clear log</button>
+                    <p class="count-line" id="logCount"></p>
+                </section>
+            </div>
+
+            <div id="graphPanel" role="tabpanel" aria-labelledby="graphTab" hidden>
+            <section class="stats activity-stats" aria-label="Activity statistics">
+                <div class="stat">
+                    <div class="stat-label">Logins today</div>
+                    <div class="stat-number" id="todayLoginCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">All logins</div>
+                    <div class="stat-number" id="totalLoginCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Signups</div>
+                    <div class="stat-number" id="signupCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">All activity</div>
+                    <div class="stat-number" id="totalActivityCount">0</div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Res Owner and Student activity</h2>
+                <div class="chart-legend" aria-hidden="true">
+                    <span><i class="legend-owner"></i>Res Owners</span>
+                    <span><i class="legend-student"></i>Students</span>
+                </div>
+                <canvas id="interactionChart" class="interaction-chart" role="img" aria-label="Res Owner and Student interactions over the last seven days"></canvas>
+            </section>
+            </div>
+
+            <footer>
+                Super Admin Console &middot; <span id="currentDate"></span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+
+        function renderLogs() {
+            var list = document.getElementById('activityLog');
+            var countLine = document.getElementById('logCount');
+            var logs = loadLogs();
+            list.innerHTML = '';
+
+            if (logs.length === 0) {
+                var empty = document.createElement('li');
+                empty.className = 'empty-note';
+                empty.textContent = 'No activity recorded yet.';
+                list.appendChild(empty);
+                countLine.textContent = '';
+                return;
+            }
+
+            for (var i = 0; i < logs.length; i++) {
+                var entry = logs[i];
+                var typeCls = entry.type || 'update';
+
+                var li = document.createElement('li');
+
+                var dot = document.createElement('span');
+                dot.className = 'log-dot ' + typeCls;
+
+                var time = document.createElement('span');
+                time.className = 'log-time';
+                time.textContent = formatTime(entry.time);
+
+                var text = document.createElement('span');
+                text.className = 'log-text';
+                text.innerHTML = escapeHtml(entry.text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+                li.appendChild(dot);
+                li.appendChild(time);
+                li.appendChild(text);
+                list.appendChild(li);
+            }
+
+            countLine.textContent = logs.length + (logs.length === 1 ? ' entry' : ' entries');
+        }
+
+        function dateKey(date) {
+            return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+        }
+
+        function renderActivityDashboard() {
+            var logs = loadLogs();
+            var today = dateKey(new Date());
+            var todayLogins = 0;
+            var totalLogins = 0;
+            var signups = 0;
+            var days = [];
+            var series = {};
+
+            for (var i = 6; i >= 0; i--) {
+                var day = new Date();
+                day.setHours(0, 0, 0, 0);
+                day.setDate(day.getDate() - i);
+                var key = dateKey(day);
+                days.push({ key: key, label: (day.getMonth() + 1) + '/' + day.getDate() });
+                series[key] = { owner: 0, student: 0 };
+            }
+
+            for (var j = 0; j < logs.length; j++) {
+                var entry = logs[j];
+                var entryDay = dateKey(new Date(entry.time));
+                if (entry.type === 'login') {
+                    totalLogins++;
+                    if (entryDay === today) todayLogins++;
+                }
+                if (entry.type === 'signup' || entry.type === 'approve' || entry.type === 'create') signups++;
+
+                var role = normalizeRole(entry.role);
+                if (series[entryDay] && role === 'RES_OWNER') series[entryDay].owner++;
+                if (series[entryDay] && role === 'STUDENT') series[entryDay].student++;
+            }
+
+            document.getElementById('todayLoginCount').textContent = todayLogins;
+            document.getElementById('totalLoginCount').textContent = totalLogins;
+            document.getElementById('signupCount').textContent = signups;
+            document.getElementById('totalActivityCount').textContent = logs.length;
+            drawInteractionChart(days, series);
+        }
+
+        function drawInteractionChart(days, series) {
+            var canvas = document.getElementById('interactionChart');
+            var width = canvas.clientWidth;
+            if (!width) return;
+            var height = 260;
+            var ratio = window.devicePixelRatio || 1;
+            canvas.width = width * ratio;
+            canvas.height = height * ratio;
+            var ctx = canvas.getContext('2d');
+            ctx.scale(ratio, ratio);
+            ctx.clearRect(0, 0, width, height);
+
+            var padding = { top: 18, right: 16, bottom: 34, left: 34 };
+            var chartHeight = height - padding.top - padding.bottom;
+            var chartWidth = width - padding.left - padding.right;
+            var max = 1;
+            for (var i = 0; i < days.length; i++) {
+                max = Math.max(max, series[days[i].key].owner, series[days[i].key].student);
+            }
+
+            ctx.font = '11px Segoe UI, Arial, sans-serif';
+            ctx.strokeStyle = '#e8eef5';
+            ctx.fillStyle = '#8497ab';
+            ctx.textAlign = 'right';
+            for (var line = 0; line <= 4; line++) {
+                var value = Math.ceil((max * line) / 4);
+                var y = padding.top + chartHeight - (chartHeight * line / 4);
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+                ctx.fillText(value, padding.left - 7, y + 4);
+            }
+
+            var groupWidth = chartWidth / days.length;
+            var barWidth = Math.max(7, Math.min(18, groupWidth * 0.26));
+            ctx.textAlign = 'center';
+            for (var index = 0; index < days.length; index++) {
+                var groupCenter = padding.left + groupWidth * index + groupWidth / 2;
+                var data = series[days[index].key];
+                var ownerHeight = (data.owner / max) * chartHeight;
+                var studentHeight = (data.student / max) * chartHeight;
+                ctx.fillStyle = '#1e40af';
+                ctx.fillRect(groupCenter - barWidth - 2, padding.top + chartHeight - ownerHeight, barWidth, ownerHeight);
+                ctx.fillStyle = '#15803d';
+                ctx.fillRect(groupCenter + 2, padding.top + chartHeight - studentHeight, barWidth, studentHeight);
+                ctx.fillStyle = '#64748b';
+                ctx.fillText(days[index].label, groupCenter, height - 12);
+            }
+        }
+
+        function clearLogs() {
+            showConfirmation('Clear all activity log entries? This cannot be undone.', function () {
+                saveLogs([]);
+                renderLogs();
+                renderActivityDashboard();
+            });
+        }
+
+        function showActivityTab(tab) {
+            var isGraph = tab === 'graph';
+            document.getElementById('logPanel').hidden = isGraph;
+            document.getElementById('graphPanel').hidden = !isGraph;
+            document.getElementById('logTab').classList.toggle('active', !isGraph);
+            document.getElementById('graphTab').classList.toggle('active', isGraph);
+            document.getElementById('logTab').setAttribute('aria-selected', String(!isGraph));
+            document.getElementById('graphTab').setAttribute('aria-selected', String(isGraph));
+            if (isGraph) renderActivityDashboard();
+        }
+
+        setupTopbar();
+        setupFooterDate();
+        renderLogs();
+        renderActivityDashboard();
+        document.getElementById('logTab').addEventListener('click', function () { showActivityTab('log'); });
+        document.getElementById('graphTab').addEventListener('click', function () { showActivityTab('graph'); });
+        window.addEventListener('storage', function (event) {
+            if (event.key === 'activityLog') {
+                renderLogs();
+                renderActivityDashboard();
+            }
+        });
+        window.addEventListener('resize', renderActivityDashboard);
+        setInterval(function () {
+            renderLogs();
+            renderActivityDashboard();
+        }, 10000);
+    </script>
+</body>
+</html>

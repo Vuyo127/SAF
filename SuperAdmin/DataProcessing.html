@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Processing &mdash; Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+    <div class="topbar"><div class="brand"><a href="Dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div><div class="user-info"><span>Signed in as</span><span class="badge" id="currentRoleDisplay">Super Admin</span><div class="menu-container"><button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu"><span></span><span></span><span></span></button></div></div></div>
+    <div class="layout">
+        <nav class="sidebar"><a href="Dashboard.html">Dashboard</a><a href="Active.html">Active users</a><a href="Deleted.html">Deleted accounts</a><a href="Activity.html">Activity log</a><a href="Res.html">Registered residences</a><a href="RevRep.html">Reviews &amp; reports</a><a href="DataProcessing.html" class="active" aria-current="page">Data Processing</a><a href="Settings.html">Settings</a><a href="Reports.html">Reports</a></nav>
+        <main class="content">
+            <h1>Data Processing</h1>
+            <section class="card">
+                <div class="section-heading"><div><h2>Residence analysis</h2></div><div><button type="button" class="danger" id="clearAnalysisHistory" onclick="clearAnalysisHistory()">Clear history</button><button type="button" class="approve" onclick="startAnalysis()">Run analysis</button></div></div>
+                <div class="table-scroll"><table><thead><tr><th>Check</th><th>Scope</th><th>Status</th><th>Result</th><th>Completed</th></tr></thead><tbody id="analysisBody"></tbody></table></div>
+                <p id="noAnalyses" class="empty-note hidden">No analyses have been run yet.</p>
+            </section>
+            <footer>Super Admin Console &middot; <span id="currentDate"></span></footer>
+        </main>
+    </div>
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+        var DEFAULT_ANALYSES = [
+            { id: 1, name: 'Residence data quality check', scope: 'All registered residences', status: 'Completed', started: '2026-09-21T08:30:00', completed: '2026-09-21T08:31:00' },
+            { id: 2, name: 'Review and report trend scan', scope: 'Feedback records', status: 'Completed', started: '2026-09-20T14:10:00', completed: '2026-09-20T14:11:00' }
+        ];
+        var analysisTimers = [];
+        function loadAnalyses() { var data = loadJSON('analysisRuns', null); if (!Array.isArray(data)) { data = DEFAULT_ANALYSES.slice(); saveJSON('analysisRuns', data); } return data; }
+        function saveAnalyses(data) { saveJSON('analysisRuns', data); }
+        function renderAnalyses() {
+            var analyses = loadAnalyses(), body = document.getElementById('analysisBody'); body.innerHTML = '';
+            document.getElementById('noAnalyses').classList.toggle('hidden', analyses.length !== 0);
+            document.getElementById('clearAnalysisHistory').disabled = analyses.length === 0;
+            for (var i = 0; i < analyses.length; i++) { var item = analyses[i], row = document.createElement('tr'); row.innerHTML = '<td>' + escapeHtml(item.name) + '</td><td>' + escapeHtml(item.scope) + '</td><td><span class="status status-' + item.status.toLowerCase() + '">' + escapeHtml(item.status) + '</span></td><td>' + escapeHtml(item.result || 'Checking records') + '</td><td>' + (item.completed ? formatTime(item.completed) : 'In progress') + '</td>'; body.appendChild(row); }
+        }
+        function startAnalysis() {
+            var analyses = loadAnalyses(), now = new Date().toISOString(), item = { id: Date.now(), name: 'Residence data quality check', scope: 'All registered residences', status: 'Running', started: now, completed: '' };
+            analyses.unshift(item); saveAnalyses(analyses); addLog('update', 'Started residence data quality analysis', 'SUPER_ADMIN'); renderAnalyses();
+            analysisTimers.push(window.setTimeout(function () { var current = loadAnalyses(), reses = loadReses(), concerns = 0; for (var j = 0; j < reses.length; j++) if (!reses[j].ownerEmail || !reses[j].ownerPhone || !reses[j].address || reses[j].reports.length >= 3) concerns++; for (var i = 0; i < current.length; i++) if (current[i].id === item.id) { current[i].status = 'Completed'; current[i].completed = new Date().toISOString(); current[i].result = concerns ? concerns + ' record(s) need review' : 'No issues found'; } saveAnalyses(current); addLog('update', 'Completed residence data quality analysis', 'SUPER_ADMIN'); renderAnalyses(); }, 1200));
+        }
+        function clearAnalysisHistory() {
+            showConfirmation('Clear all analysis history? This cannot be undone.', function () {
+                for (var i = 0; i < analysisTimers.length; i++) window.clearTimeout(analysisTimers[i]);
+                analysisTimers = [];
+                saveAnalyses([]);
+                addLog('update', 'Cleared analysis history', 'SUPER_ADMIN');
+                renderAnalyses();
+            });
+        }
+        setupTopbar(); setupFooterDate(); renderAnalyses();
+        if (loadJSON('systemSettings', {}).automaticAnalyses && !sessionStorage.getItem('dataCheckRunThisSession')) { sessionStorage.setItem('dataCheckRunThisSession', 'true'); startAnalysis(); }
+    </script>
+</body>
+</html>

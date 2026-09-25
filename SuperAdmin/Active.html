@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active users — Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand"><a href="dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div>
+        <div class="user-info">
+            <span>Signed in as</span>
+            <span class="badge" id="currentRoleDisplay">Super Admin</span>
+            <div class="menu-container">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <div class="layout">
+        <nav class="sidebar">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="active.html" class="active" aria-current="page">Active users</a>
+            <a href="deleted.html">Deleted accounts</a>
+            <a href="activity.html">Activity log</a>
+            <a href="Res.html">Registered residences</a>
+            <a href="RevRep.html">Reviews &amp; reports</a>
+            <a href="DataProcessing.html">Data processing</a>
+            <a href="Settings.html">Settings</a>
+            <a href="Reports.html">Reports</a>
+        </nav>
+
+        <div class="content">
+            <h1>Active users</h1>
+
+            <section class="card">
+                <div class="toolbar">
+                    <input type="text" id="searchInput" placeholder="Search by name..." oninput="renderActiveUsers()">
+                    <select id="roleFilter" onchange="renderActiveUsers()">
+                        <option value="">All roles</option>
+                        <option value="SUPER_ADMIN">Super Admin</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="RES_OWNER">Res Owner</option>
+                        <option value="STUDENT">Student</option>
+                    </select>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Role assignment</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody"></tbody>
+                </table>
+                <p id="noUsersMsg" class="empty-note hidden">No matching accounts.</p>
+                <p class="count-line" id="userCount"></p>
+            </section>
+
+            <footer>
+                Super Admin Console &middot; <span id="currentDate"></span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+
+        function renderActiveUsers() {
+            var tbody = document.getElementById('userTableBody');
+            var noMsg = document.getElementById('noUsersMsg');
+            var countLine = document.getElementById('userCount');
+            var searchInput = document.getElementById('searchInput');
+            var roleFilter = document.getElementById('roleFilter');
+
+            var users = loadUsers();
+            var linkedAdmins = loadLinkedAdminUsers();
+            for (var a = 0; a < linkedAdmins.length; a++) {
+                var alreadyListed = false;
+                for (var b = 0; b < users.length; b++) {
+                    if ((linkedAdmins[a].email && linkedAdmins[a].email === users[b].email) || linkedAdmins[a].name === users[b].name) {
+                        alreadyListed = true;
+                        break;
+                    }
+                }
+                if (!alreadyListed) users.push(linkedAdmins[a]);
+            }
+            var query = (searchInput.value || '').trim().toLowerCase();
+            var filterRole = roleFilter.value;
+
+            var filtered = [];
+            for (var i = 0; i < users.length; i++) {
+                var u = users[i];
+                if (filterRole && u.role !== filterRole) continue;
+                if (query && u.name.toLowerCase().indexOf(query) === -1) continue;
+                filtered.push(u);
+            }
+
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                noMsg.classList.remove('hidden');
+                countLine.textContent = '';
+                return;
+            }
+            noMsg.classList.add('hidden');
+
+            for (var j = 0; j < filtered.length; j++) {
+                var acc = filtered[j];
+                var isSelf = (acc.name === currentUser.name);
+                var isSuperAdmin = (acc.role === 'SUPER_ADMIN');
+                var isLinkedAdmin = !!acc.linkedAdmin;
+
+                var roleControl = '<span class="role-label">' + escapeHtml(roleLabel(acc.role)) + '</span>';
+                var actions = '';
+                if (isSelf) {
+                    actions = '<button disabled>You</button>';
+                } else if (isSuperAdmin) {
+                    actions = '<button disabled>Protected</button>';
+                } else if (isLinkedAdmin) {
+                    actions = '<button disabled>Linked admin</button>';
+                } else {
+                    actions += '<button class="small danger" onclick="deleteUser(' + acc.id + ')">Delete</button>';
+                }
+
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td>' + acc.id + '</td>' +
+                    '<td>' + escapeHtml(acc.name) + '</td>' +
+                    '<td>' + roleControl + '</td>' +
+                    '<td>' + actions + '</td>';
+                tbody.appendChild(tr);
+            }
+
+            countLine.textContent = filtered.length + (filtered.length === 1 ? ' account' : ' accounts');
+        }
+
+        function deleteUser(id) {
+            var users = loadUsers();
+            var target = null;
+            for (var i = 0; i < users.length; i++) {
+                if (users[i].id === id) { target = users[i]; break; }
+            }
+            if (!target) return;
+            if (target.role === 'SUPER_ADMIN') {
+                alert('Super Admin accounts cannot be deleted.');
+                return;
+            }
+            showConfirmation('Move "' + target.name + '" to deleted accounts?', function () {
+                var remaining = [];
+                for (var j = 0; j < users.length; j++) {
+                    if (users[j].id !== id) remaining.push(users[j]);
+                }
+                saveUsers(remaining);
+
+                var deleted = loadDeleted();
+                deleted.push({ id: target.id, name: target.name, role: target.role, deletedAt: new Date().toISOString() });
+                saveDeleted(deleted);
+                addLog('delete', 'Deleted account **' + target.name + '** (' + roleLabel(target.role) + ')', target.role);
+                renderActiveUsers();
+            });
+        }
+
+        setupTopbar();
+        seedDefaults();
+        setupFooterDate();
+        renderActiveUsers();
+    </script>
+</body>
+</html>

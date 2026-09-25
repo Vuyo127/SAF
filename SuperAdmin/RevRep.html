@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reviews &amp; Reports — Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+    <div class="topbar"><div class="brand"><a href="dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div><div class="user-info"><span>Signed in as</span><span class="badge" id="currentRoleDisplay">Super Admin</span><div class="menu-container"><button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu"><span></span><span></span><span></span></button></div></div></div>
+    <div class="layout">
+        <nav class="sidebar"><a href="dashboard.html">Dashboard</a><a href="active.html">Active users</a><a href="deleted.html">Deleted accounts</a><a href="activity.html">Activity log</a><a href="Res.html">Registered residences</a><a href="RevRep.html" class="active" aria-current="page">Reviews &amp; reports</a><a href="DataProcessing.html">Data processing</a><a href="Settings.html">Settings</a><a href="Reports.html">Reports</a></nav>
+        <main class="content">
+            <h1>Reviews &amp; reports</h1>
+            <section class="stats" aria-label="Residence statistics">
+                <div class="stat"><div class="stat-label">Registered residences</div><div class="stat-number" id="registeredCount">0</div></div>
+                <div class="stat"><div class="stat-label">Highly rated</div><div class="stat-number" id="highRatedCount">0</div></div>
+                <div class="stat"><div class="stat-label">Highly reported</div><div class="stat-number" id="highReportedCount">0</div></div>
+            </section>
+            <div class="tab-toolbar">
+                <div class="page-tabs" role="tablist" aria-label="Residence views">
+                    <button class="page-tab active" id="ratedTab" type="button" role="tab" aria-selected="true" aria-controls="ratedPanel">Highly rated</button>
+                    <button class="page-tab" id="reportedTab" type="button" role="tab" aria-selected="false" aria-controls="reportedPanel">Highly reported</button>
+                </div>
+                <input class="res-search" id="resSearch" type="search" placeholder="Search residence, owner, email, or contact" aria-label="Search residences">
+            </div>
+            <div id="ratedPanel" role="tabpanel" aria-labelledby="ratedTab">
+            <section class="card">
+                <h2>Highly rated residences</h2>
+                <div class="table-scroll"><table><thead><tr><th>Residence</th><th>Owner</th><th>Email</th><th>Contact</th><th>Rating</th><th>Reviews</th></tr></thead><tbody id="highRatedBody"></tbody></table></div>
+                <p id="noHighRated" class="empty-note hidden">No highly rated residences yet.</p>
+            </section>
+            </div>
+            <div id="reportedPanel" role="tabpanel" aria-labelledby="reportedTab" hidden>
+            <section class="card">
+                <h2>Highly reported residences</h2>
+                <div class="table-scroll"><table><thead><tr><th>Residence</th><th>Owner</th><th>Email</th><th>Contact</th><th>Reports</th><th>Report details</th><th>Action</th></tr></thead><tbody id="highReportedBody"></tbody></table></div>
+                <p id="noHighReported" class="empty-note hidden">No highly reported residences yet.</p>
+            </section>
+            </div>
+            <footer>Super Admin Console &middot; <span id="currentDate"></span></footer>
+        </main>
+    </div>
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+
+        function feedbackDetails(res, type) {
+            var items = type === 'reviews' ? res.reviews : res.reports;
+            if (!items.length) return '<span class="feedback-empty">None recorded</span>';
+            var label = type === 'reviews' ? 'Reviews' : 'Reports';
+            var html = '<details class="res-feedback"><summary>' + label + ' (' + items.length + ')</summary><ul>';
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                if (type === 'reviews') html += '<li><strong>' + escapeHtml(item.author || 'Resident') + '</strong> · ' + Number(item.rating || 0).toFixed(1) + '/5<br>' + escapeHtml(item.text || '') + '</li>';
+                else html += '<li><strong>' + escapeHtml(item.reason || 'Reported concern') + '</strong>' + (item.date ? ' · ' + escapeHtml(item.date) : '') + '</li>';
+            }
+            return html + '</ul></details>';
+        }
+
+        function contactCell(res) { return '<a href="mailto:' + encodeURIComponent(res.ownerEmail) + '">' + escapeHtml(res.ownerEmail) + '</a>'; }
+        function phoneCell(res) { return '<a href="tel:' + encodeURIComponent(res.ownerPhone) + '">' + escapeHtml(res.ownerPhone) + '</a>'; }
+
+        function renderReviewsReports() {
+            var reses = loadReses(), highRated = [], highReported = [];
+            for (var i = 0; i < reses.length; i++) {
+                if (reses[i].status === 'Suspended') continue;
+                if (Number(reses[i].rating) >= 4.5) highRated.push(reses[i]);
+                if (reses[i].reports.length >= 3) highReported.push(reses[i]);
+            }
+            document.getElementById('registeredCount').textContent = reses.length;
+            document.getElementById('highRatedCount').textContent = highRated.length;
+            document.getElementById('highReportedCount').textContent = highReported.length;
+            renderHighRated(highRated); renderHighReported(highReported);
+        }
+
+        function filterReses(reses) {
+            var query = document.getElementById('resSearch').value.trim().toLowerCase();
+            if (!query) return reses;
+            return reses.filter(function (res) {
+                return [res.name, res.ownerName, res.ownerEmail, res.ownerPhone, res.id].join(' ').toLowerCase().indexOf(query) !== -1;
+            });
+        }
+
+        function renderHighRated(reses) {
+            reses = filterReses(reses);
+            var body = document.getElementById('highRatedBody'); body.innerHTML = '';
+            document.getElementById('noHighRated').classList.toggle('hidden', reses.length !== 0);
+            for (var i = 0; i < reses.length; i++) {
+                var res = reses[i], row = document.createElement('tr');
+                row.innerHTML = '<td>' + escapeHtml(res.name) + '</td><td>' + escapeHtml(res.ownerName) + '</td><td>' + contactCell(res) + '</td><td>' + phoneCell(res) + '</td><td>' + Number(res.rating).toFixed(1) + ' / 5</td><td>' + feedbackDetails(res, 'reviews') + '</td>';
+                body.appendChild(row);
+            }
+        }
+
+        function renderHighReported(reses) {
+            reses = filterReses(reses);
+            var body = document.getElementById('highReportedBody'); body.innerHTML = '';
+            document.getElementById('noHighReported').classList.toggle('hidden', reses.length !== 0);
+            for (var i = 0; i < reses.length; i++) {
+                var res = reses[i], row = document.createElement('tr');
+                row.innerHTML = '<td>' + escapeHtml(res.name) + '</td><td>' + escapeHtml(res.ownerName) + '</td><td>' + contactCell(res) + '</td><td>' + phoneCell(res) + '</td><td>' + res.reports.length + '</td><td>' + feedbackDetails(res, 'reports') + '</td><td><button class="small demote" onclick="warnOwner(' + res.id + ')">Send warning</button><button class="small" onclick="suspendResidence(' + res.id + ')">Suspend</button><button class="small danger" onclick="removeResidence(' + res.id + ')">Remove</button></td>';
+                body.appendChild(row);
+            }
+        }
+
+        function findResidence(id) { var reses = loadReses(); for (var i = 0; i < reses.length; i++) if (reses[i].id === id) return reses[i]; return null; }
+        function warnOwner(id) {
+            var res = findResidence(id); if (!res) return;
+            addLog('warning', 'Prepared warning email for **' + res.ownerName + '** about ' + res.name, 'RES_OWNER');
+            var subject = encodeURIComponent('Warning regarding ' + res.name);
+            var message = encodeURIComponent('Hello ' + res.ownerName + ',\n\nYour residence, ' + res.name + ', has received ' + res.reports.length + ' reports. Please address these concerns.\n\nRegards,\nSuper Admin');
+            window.location.href = 'mailto:' + encodeURIComponent(res.ownerEmail) + '?subject=' + subject + '&body=' + message;
+        }
+        function removeResidence(id) {
+            var res = findResidence(id); if (!res) return;
+            showConfirmation('Remove "' + res.name + '"? This cannot be undone.', function () {
+                saveReses(loadReses().filter(function (item) { return item.id !== id; }));
+                addLog('remove-res', 'Removed residence **' + res.name + '** owned by ' + res.ownerName, 'RES_OWNER');
+                renderReviewsReports();
+            });
+        }
+        function suspendResidence(id) {
+            var reses = loadReses(), target = null;
+            for (var i = 0; i < reses.length; i++) if (reses[i].id === id) { target = reses[i]; break; }
+            if (!target) return;
+            showConfirmation('Suspend "' + target.name + '"?', function () {
+                target.status = 'Suspended';
+                saveReses(reses);
+                addLog('update', 'Suspended residence **' + target.name + '** following reports', 'RES_OWNER');
+                renderReviewsReports();
+            });
+        }
+        function showResidenceTab(tab) {
+            var panels = { rated: 'ratedPanel', reported: 'reportedPanel' };
+            var tabs = { rated: 'ratedTab', reported: 'reportedTab' };
+            for (var key in panels) {
+                var active = key === tab;
+                document.getElementById(panels[key]).hidden = !active;
+                document.getElementById(tabs[key]).classList.toggle('active', active);
+                document.getElementById(tabs[key]).setAttribute('aria-selected', String(active));
+            }
+        }
+        setupTopbar(); seedDefaults(); setupFooterDate(); renderReviewsReports();
+        document.getElementById('ratedTab').addEventListener('click', function () { showResidenceTab('rated'); });
+        document.getElementById('reportedTab').addEventListener('click', function () { showResidenceTab('reported'); });
+        document.getElementById('resSearch').addEventListener('input', renderReviewsReports);
+    </script>
+</body>
+</html>

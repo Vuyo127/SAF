@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand"><a href="dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div>
+        <div class="user-info">
+            <span>Signed in as</span>
+            <span class="badge" id="currentRoleDisplay">Super Admin</span>
+            <div class="menu-container">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <nav class="sidebar">
+            <a href="dashboard.html" class="active" aria-current="page">Dashboard</a>
+            <a href="active.html">Active users</a>
+            <a href="deleted.html">Deleted accounts</a>
+            <a href="activity.html">Activity log</a>
+            <a href="Res.html">Registered residences</a>
+            <a href="RevRep.html">Reviews &amp; reports</a>
+            <a href="DataProcessing.html">Data processing</a>
+            <a href="Settings.html">Settings</a>
+            <a href="Reports.html">Reports</a>
+        </nav>
+
+        <div class="content">
+            <h1>Residence dashboard</h1>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Pending requests</div>
+                    <div class="stat-number" id="pendingCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Registered residences</div>
+                    <div class="stat-number" id="registeredResCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Highly rated</div>
+                    <div class="stat-number" id="highRatedCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Highly reported</div>
+                    <div class="stat-number" id="highReportedCount">0</div>
+                </div>
+            </div>
+
+            <section class="card">
+                <h2>Residence requests</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Residence</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestTableBody"></tbody>
+                </table>
+                <p id="noRequestsMsg" class="empty-note hidden">No pending requests right now.</p>
+            </section>
+
+            <footer>
+                Super Admin Console &middot; <span id="currentDate"></span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+
+        function renderDashboard() {
+            var requests = loadRequests();
+            var reses = loadReses();
+
+            document.getElementById('pendingCount').textContent = requests.length;
+            document.getElementById('registeredResCount').textContent = reses.length;
+
+            var highlyRated = 0;
+            var highlyReported = 0;
+            for (var i = 0; i < reses.length; i++) {
+                if (reses[i].rating >= 4.5) highlyRated++;
+                if (reses[i].reports >= 3) highlyReported++;
+            }
+            document.getElementById('highRatedCount').textContent = highlyRated;
+            document.getElementById('highReportedCount').textContent = highlyReported;
+
+            renderRequests();
+        }
+
+        function renderRequests() {
+            var tbody = document.getElementById('requestTableBody');
+            var noMsg = document.getElementById('noRequestsMsg');
+            var requests = loadRequests();
+            tbody.innerHTML = '';
+
+            if (requests.length === 0) {
+                noMsg.classList.remove('hidden');
+                return;
+            }
+            noMsg.classList.add('hidden');
+
+            for (var i = 0; i < requests.length; i++) {
+                var r = requests[i];
+                var residence = r.role === 'RES_OWNER'
+                    ? (r.residenceName || 'Residence name not provided')
+                    : '—';
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td>' + escapeHtml(r.name) + '</td>' +
+                    '<td>' + escapeHtml(r.email || emailForName(r.name)) + '</td>' +
+                    '<td>' + escapeHtml(residence) + '</td>' +
+                    '<td>' +
+                        '<button class="small approve" onclick="approveRequest(' + r.id + ')">Approve</button>' +
+                        '<button class="small danger" onclick="denyRequest(' + r.id + ')">Deny</button>' +
+                    '</td>';
+                tbody.appendChild(tr);
+            }
+        }
+
+        function approveRequest(id) {
+            var requests = loadRequests();
+            var target = null;
+            for (var i = 0; i < requests.length; i++) {
+                if (requests[i].id === id) { target = requests[i]; break; }
+            }
+            if (!target) return;
+
+            var users = loadUsers();
+            users.push({ id: nextUserId(), name: target.name, email: target.email || emailForName(target.name), role: target.role });
+            saveUsers(users);
+
+            var remaining = [];
+            for (var j = 0; j < requests.length; j++) {
+                if (requests[j].id !== id) remaining.push(requests[j]);
+            }
+            saveRequests(remaining);
+
+            addLog('signup', 'Approved **' + target.name + '** as ' + roleLabel(target.role), target.role);
+            renderDashboard();
+        }
+
+        function denyRequest(id) {
+            var requests = loadRequests();
+            var target = null;
+            for (var i = 0; i < requests.length; i++) {
+                if (requests[i].id === id) { target = requests[i]; break; }
+            }
+            if (!target) return;
+
+            var remaining = [];
+            for (var j = 0; j < requests.length; j++) {
+                if (requests[j].id !== id) remaining.push(requests[j]);
+            }
+            saveRequests(remaining);
+            addLog('deny', 'Denied request from **' + target.name + '**', target.role);
+            renderDashboard();
+        }
+
+        setupTopbar();
+        seedDefaults();
+        setupFooterDate();
+        renderDashboard();
+    </script>
+</body>
+</html>

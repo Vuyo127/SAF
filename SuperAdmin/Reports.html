@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports &mdash; Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+    <div class="topbar"><div class="brand"><a href="Dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div><div class="user-info"><span>Signed in as</span><span class="badge" id="currentRoleDisplay">Super Admin</span><div class="menu-container"><button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu"><span></span><span></span><span></span></button></div></div></div>
+    <div class="layout">
+        <nav class="sidebar"><a href="Dashboard.html">Dashboard</a><a href="Active.html">Active users</a><a href="Deleted.html">Deleted accounts</a><a href="Activity.html">Activity log</a><a href="Res.html">Registered residences</a><a href="RevRep.html">Reviews &amp; reports</a><a href="DataProcessing.html">Data processing</a><a href="Settings.html">Settings</a><a href="Reports.html" class="active" aria-current="page">Reports</a></nav>
+        <main class="content">
+            <h1>Reports</h1>
+            <section class="card"><h2>Download reports</h2><div class="report-grid"><article class="report-item"><h3>Registered residences</h3><p>Residence, owner, contact, rating, and feedback totals.</p><button type="button" onclick="downloadResidenceCsv()">Download CSV</button></article><article class="report-item"><h3>Activity history</h3><p>Administrator, owner, and student activity entries.</p><button type="button" onclick="downloadActivityCsv()">Download CSV</button></article><article class="report-item"><h3>Residence summary</h3><p>Printable one-page overview of registered residences.</p><button type="button" onclick="downloadResidencePdf()">Download PDF</button></article></div><p class="auth-message" id="reportMessage" aria-live="polite"></p></section>
+            <footer>Super Admin Console &middot; <span id="currentDate"></span></footer>
+        </main>
+    </div>
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+        function csvCell(value) { return '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"'; }
+        function downloadFile(contents, name, type) { var link = document.createElement('a'), url = URL.createObjectURL(new Blob([contents], { type: type })); link.href = url; link.download = name; document.body.appendChild(link); link.click(); document.body.removeChild(link); window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000); document.getElementById('reportMessage').textContent = name + ' downloaded.'; document.getElementById('reportMessage').className = 'auth-message success'; addLog('download', 'Downloaded report **' + name + '**', 'SUPER_ADMIN'); }
+        function downloadResidenceCsv() { var reses = loadReses(), rows = [['Registration ID', 'Residence', 'Owner', 'Email', 'Contact', 'Rating', 'Reviews', 'Reports']]; for (var i = 0; i < reses.length; i++) rows.push([reses[i].id, reses[i].name, reses[i].ownerName, reses[i].ownerEmail, reses[i].ownerPhone, reses[i].rating, reses[i].reviews.length, reses[i].reports.length]); downloadFile(rows.map(function (row) { return row.map(csvCell).join(','); }).join('\r\n'), 'registered-residences.csv', 'text/csv;charset=utf-8'); }
+        function downloadActivityCsv() { var logs = loadLogs(), rows = [['Time', 'Type', 'Role', 'Details']]; for (var i = 0; i < logs.length; i++) rows.push([logs[i].time, logs[i].type, logs[i].role || '', logs[i].text]); downloadFile(rows.map(function (row) { return row.map(csvCell).join(','); }).join('\r\n'), 'activity-history.csv', 'text/csv;charset=utf-8'); }
+        function pdfText(value) { return String(value).replace(/[^\x20-\x7E]/g, '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)'); }
+        function buildPdf(lines) { var content = 'BT\n/F1 18 Tf\n50 760 Td\n(' + pdfText(lines[0]) + ') Tj\n/F1 10 Tf\n'; for (var i = 1; i < lines.length; i++) content += '0 -18 Td\n(' + pdfText(lines[i]) + ') Tj\n'; content += 'ET'; var objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>', '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']; var pdf = '%PDF-1.4\n', offsets = [0]; for (var j = 0; j < objects.length; j++) { offsets.push(pdf.length); pdf += (j + 1) + ' 0 obj\n' + objects[j] + '\nendobj\n'; } var xref = pdf.length; pdf += 'xref\n0 ' + (objects.length + 1) + '\n0000000000 65535 f \n'; for (var k = 1; k < offsets.length; k++) pdf += String(offsets[k]).padStart(10, '0') + ' 00000 n \n'; return pdf + 'trailer\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF'; }
+        function downloadResidencePdf() { var reses = loadReses(), lines = ['Super Admin - Registered Residence Summary', 'Generated: ' + new Date().toLocaleString(), 'Registered residences: ' + reses.length, '']; for (var i = 0; i < reses.length && i < 34; i++) lines.push((i + 1) + '. ' + reses[i].name + ' - Owner: ' + reses[i].ownerName + ' - Rating: ' + Number(reses[i].rating).toFixed(1) + '/5'); if (reses.length > 34) lines.push('Additional residences are available in the CSV export.'); downloadFile(buildPdf(lines), 'residence-summary.pdf', 'application/pdf'); }
+        setupTopbar(); setupFooterDate();
+    </script>
+</body>
+</html>

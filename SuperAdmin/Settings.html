@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings &mdash; Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+    <div class="topbar"><div class="brand"><a href="Dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div><div class="user-info"><span>Signed in as</span><span class="badge" id="currentRoleDisplay">Super Admin</span><div class="menu-container"><button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu"><span></span><span></span><span></span></button></div></div></div>
+    <div class="layout">
+        <nav class="sidebar"><a href="Dashboard.html">Dashboard</a><a href="Active.html">Active users</a><a href="Deleted.html">Deleted accounts</a><a href="Activity.html">Activity log</a><a href="Res.html">Registered residences</a><a href="RevRep.html">Reviews &amp; reports</a><a href="DataProcessing.html">Data checks</a><a href="Settings.html" class="active" aria-current="page">Settings</a><a href="Reports.html">Reports</a></nav>
+        <main class="content">
+            <h1>Settings</h1>
+            <p class="subtitle">Manage residence review defaults and automated data checks.</p>
+            <section class="card settings-card">
+                <h2>Residence review</h2>
+                <label for="defaultResidenceStatus">Default residence status</label>
+                <select id="defaultResidenceStatus"><option value="Approved">Approved</option><option value="Suspended">Suspended</option></select>
+            </section>
+            <section class="card settings-card">
+                <h2>Data Processing</h2>
+                <label class="setting-row"><span><strong>Run analysis automatically</strong><small>Start a residence data quality analysis when you open Data Processing.</small></span><input id="automaticAnalyses" type="checkbox"></label>
+            </section>
+            <section class="card settings-card account-settings">
+                <h2>Administrator account</h2>
+                <p class="setting-description">Update the name and email shown for your Super Admin account.</p>
+                <label for="adminName">Full name</label><input id="adminName" type="text" autocomplete="name" maxlength="80" required>
+                <label for="adminEmail">Email address</label><input id="adminEmail" type="email" autocomplete="email" maxlength="120" required>
+                <div class="account-role"><strong>Role</strong><span id="settingsAccountRole">Super Admin</span></div>
+                <button type="button" onclick="saveAdministratorDetails()">Save administrator details</button>
+                <button type="button" class="secondary" onclick="signOut()">Sign out</button>
+            </section>
+            <div class="settings-actions"><button type="button" onclick="saveSettings()">Save preferences</button><button type="button" class="secondary" onclick="resetSettings()">Reset to defaults</button><p class="auth-message" id="settingsMessage" aria-live="polite"></p></div>
+            <footer>Super Admin Console &middot; <span id="currentDate"></span></footer>
+        </main>
+    </div>
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+        var defaultSettings = { defaultResidenceStatus: 'Approved', automaticAnalyses: false };
+        function loadSettings() { var settings = loadJSON('systemSettings', null); if (!settings || typeof settings !== 'object') { settings = defaultSettings; saveJSON('systemSettings', settings); } return settings; }
+        function showSettingsMessage(text, success) { var message = document.getElementById('settingsMessage'); message.textContent = text; message.className = 'auth-message' + (success ? ' success' : ''); }
+        function renderSettings() {
+            var settings = loadSettings(), user = getAuthenticatedUser();
+            document.getElementById('defaultResidenceStatus').value = settings.defaultResidenceStatus === 'Suspended' ? 'Suspended' : 'Approved';
+            document.getElementById('automaticAnalyses').checked = !!settings.automaticAnalyses;
+            var profile = loadJSON('superAdminProfile', {});
+            document.getElementById('adminName').value = profile.name || user.name || '';
+            document.getElementById('adminEmail').value = profile.email || user.email || '';
+            document.getElementById('settingsAccountRole').textContent = roleLabel(user.role);
+        }
+        function saveAdministratorDetails() {
+            var name = document.getElementById('adminName').value.trim();
+            var email = document.getElementById('adminEmail').value.trim().toLowerCase();
+            if (!name || !document.getElementById('adminEmail').checkValidity()) {
+                showSettingsMessage('Enter a name and a valid email address.', false);
+                return;
+            }
+            var user = getAuthenticatedUser();
+            user.name = name;
+            user.email = email;
+            saveJSON('superAdminProfile', { name: name, email: email });
+            saveJSON('superAdminSession', user);
+            currentUser = user;
+            addLog('update', 'Updated Super Admin account details', 'SUPER_ADMIN');
+            showSettingsMessage('Administrator details saved. Use the new email address the next time you sign in.', true);
+        }
+        function saveSettings() {
+            var settings = { defaultResidenceStatus: document.getElementById('defaultResidenceStatus').value, automaticAnalyses: document.getElementById('automaticAnalyses').checked };
+            saveJSON('systemSettings', settings);
+            addLog('update', 'Updated console preferences', 'SUPER_ADMIN');
+            showSettingsMessage('Preferences saved.', true);
+        }
+        function resetSettings() {
+            showConfirmation('Reset all console preferences to their defaults?', function () {
+                saveJSON('systemSettings', defaultSettings);
+                renderSettings();
+                addLog('update', 'Reset console preferences to defaults', 'SUPER_ADMIN');
+                showSettingsMessage('Preferences reset to defaults.', true);
+            });
+        }
+        setupTopbar(); setupFooterDate(); renderSettings();
+    </script>
+</body>
+</html>

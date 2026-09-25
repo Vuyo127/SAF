@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registered residences &mdash; Super Admin</title>
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+    <div class="topbar"><div class="brand"><a href="Dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div><div class="user-info"><span>Signed in as</span><span class="badge" id="currentRoleDisplay">Super Admin</span><div class="menu-container"><button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu"><span></span><span></span><span></span></button></div></div></div>
+    <div class="layout">
+        <nav class="sidebar"><a href="Dashboard.html">Dashboard</a><a href="Active.html">Active users</a><a href="Deleted.html">Deleted accounts</a><a href="Activity.html">Activity log</a><a href="Res.html" class="active" aria-current="page">Registered residences</a><a href="RevRep.html">Reviews &amp; reports</a><a href="DataProcessing.html">Data processing</a><a href="Settings.html">Settings</a><a href="Reports.html">Reports</a></nav>
+        <main class="content">
+            <h1>Registered residences</h1>
+            <section class="stats" aria-label="Residence statistics"><div class="stat"><div class="stat-label">Registered residences</div><div class="stat-number" id="registeredCount">0</div></div></section>
+            <section class="card">
+                <div class="toolbar"><input class="res-search" id="resSearch" type="search" placeholder="Search residence, owner, email, or contact" aria-label="Search residences"><select id="statusFilter" aria-label="Filter by residence status"><option value="">All statuses</option><option>Approved</option><option>Suspended</option></select></div>
+                <div class="table-scroll"><table><thead><tr><th>Residence</th><th>Registration ID</th><th>Owner</th><th>Email</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead><tbody id="registeredBody"></tbody></table></div>
+                <p id="noRegistered" class="empty-note hidden">No residences are registered yet.</p>
+            </section>
+            <footer>Super Admin Console &middot; <span id="currentDate"></span></footer>
+        </main>
+    </div>
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+        function contactCell(res) { return '<a href="mailto:' + encodeURIComponent(res.ownerEmail) + '">' + escapeHtml(res.ownerEmail) + '</a>'; }
+        function phoneCell(res) { return '<a href="tel:' + encodeURIComponent(res.ownerPhone) + '">' + escapeHtml(res.ownerPhone) + '</a>'; }
+        function renderRegistered() {
+            var allReses = loadReses(), reses = allReses.slice(), query = document.getElementById('resSearch').value.trim().toLowerCase();
+            var status = document.getElementById('statusFilter').value;
+            if (query) reses = reses.filter(function (res) { return [res.name, res.ownerName, res.ownerEmail, res.ownerPhone, res.id].join(' ').toLowerCase().indexOf(query) !== -1; });
+            if (status) reses = reses.filter(function (res) { return res.status === status; });
+            document.getElementById('registeredCount').textContent = allReses.length;
+            var body = document.getElementById('registeredBody'); body.innerHTML = ''; document.getElementById('noRegistered').classList.toggle('hidden', reses.length !== 0);
+            for (var j = 0; j < reses.length; j++) { var res = reses[j], row = document.createElement('tr'); row.innerHTML = '<td>' + escapeHtml(res.name) + '</td><td>#' + res.id + '</td><td>' + escapeHtml(res.ownerName) + '</td><td>' + contactCell(res) + '</td><td>' + phoneCell(res) + '</td><td><span class="status status-' + String(res.status || 'Approved').toLowerCase() + '">' + escapeHtml(res.status || 'Approved') + '</span></td><td><button class="small danger" type="button" onclick="removeResidence(' + res.id + ')">Remove</button></td>'; body.appendChild(row); }
+        }
+        function removeResidence(id) {
+            var reses = loadReses(), target = null;
+            for (var i = 0; i < reses.length; i++) if (reses[i].id === id) { target = reses[i]; break; }
+            if (!target) return;
+            showConfirmation('Remove "' + target.name + '" from registered residences?', function () {
+                saveReses(reses.filter(function (res) { return res.id !== id; }));
+                addLog('delete', 'Removed residence **' + target.name + '**', 'RES_OWNER');
+                renderRegistered();
+            });
+        }
+        setupTopbar(); seedDefaults(); setupFooterDate(); renderRegistered();
+        document.getElementById('resSearch').addEventListener('input', renderRegistered);
+        document.getElementById('statusFilter').addEventListener('change', renderRegistered);
+        window.addEventListener('storage', function (event) { if (event.key === 'reses') renderRegistered(); });
+    </script>
+</body>
+</html>

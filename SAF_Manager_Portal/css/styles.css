@@ -1,0 +1,1141 @@
+/* =========================================================
+   SAF - STUDENT ACCOMMODATION FINDER
+   MANAGER / RESIDENCE ADMIN PORTAL
+   Main stylesheet
+========================================================= */
+
+
+/* =========================================================
+   1. GLOBAL VARIABLES
+========================================================= */
+
+:root {
+    --navy: #09284b;
+    --blue: #1769d1;
+    --cyan: #20b8bd;
+
+    --background: #f4f7fb;
+    --white: #ffffff;
+
+    --text: #17304f;
+    --muted: #718095;
+
+    --border: #e1e8f0;
+
+    --green: #138966;
+    --red: #d74451;
+}
+
+
+/* =========================================================
+   2. GLOBAL RESET
+========================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Inter, Arial, sans-serif;
+    background: var(--background);
+    color: var(--text);
+}
+
+a {
+    color: var(--blue);
+    text-decoration: none;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   3. LOGIN / REGISTER PAGE
+========================================================= */
+
+.auth {
+    min-height: 100vh;
+
+    background: linear-gradient(
+        135deg,
+        #08284a,
+        #1769a5
+    );
+
+    display: grid;
+    place-items: center;
+
+    padding: 25px;
+}
+
+
+/* Login / register card */
+
+.auth-card {
+    background: var(--white);
+
+    width: min(470px, 100%);
+
+    padding: 32px;
+
+    border-radius: 18px;
+
+    box-shadow: 0 25px 70px #001d3b55;
+}
+
+
+/* Wider registration card */
+
+.auth-card.wide {
+    width: min(780px, 100%);
+}
+
+
+/* =========================================================
+   4. SAF BRANDING
+========================================================= */
+
+.brand {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 25px;
+}
+
+.brand b {
+    font-size: 32px;
+
+    color: var(--blue);
+
+    letter-spacing: 2px;
+}
+
+.brand span {
+    font-size: 11px;
+
+    color: var(--muted);
+}
+
+
+/* Small heading above main heading */
+
+.eyebrow {
+    font-size: 10px;
+
+    font-weight: 800;
+
+    color: var(--cyan);
+
+    letter-spacing: 1px;
+}
+
+
+/* =========================================================
+   5. LOGIN / REGISTER TYPOGRAPHY
+========================================================= */
+
+.auth-card h1 {
+    margin: 5px 0;
+}
+
+.auth-card > p:not(.eyebrow) {
+    color: var(--muted);
+
+    font-size: 13px;
+
+    line-height: 1.5;
+}
+
+.auth-card h3 {
+    font-size: 13px;
+
+    border-bottom: 1px solid var(--border);
+
+    padding-bottom: 8px;
+
+    margin-top: 24px;
+}
+
+
+/* =========================================================
+   6. FORM ELEMENTS
+========================================================= */
+
+label {
+    display: block;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    margin: 13px 0 6px;
+}
+
+input,
+select {
+    width: 100%;
+
+    padding: 11px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 8px;
+
+    outline: none;
+
+    background: white;
+}
+
+input:focus,
+select:focus {
+    border-color: var(--blue);
+
+    box-shadow: 0 0 0 3px #1769d120;
+}
+
+
+/* =========================================================
+   7. PRIMARY BUTTON
+========================================================= */
+
+.primary {
+    width: 100%;
+
+    border: 0;
+
+    border-radius: 8px;
+
+    background: var(--blue);
+
+    color: white;
+
+    padding: 12px;
+
+    margin-top: 18px;
+
+    font-weight: 700;
+}
+
+.primary:hover {
+    background: #1258b1;
+}
+
+
+/* =========================================================
+   8. REGISTRATION FORM GRID
+========================================================= */
+
+.grid2 {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 0 15px;
+}
+
+
+/* Centered text */
+
+.center {
+    text-align: center;
+
+    font-size: 12px;
+
+    margin-top: 20px;
+}
+
+
+/* Demo login information */
+
+.demo {
+    background: #f3f7fc;
+
+    border: 1px dashed #b8c8da;
+
+    border-radius: 9px;
+
+    padding: 10px;
+
+    font-size: 11px;
+
+    color: var(--muted);
+
+    margin-top: 18px;
+}
+
+
+/* Error / information message */
+
+.msg {
+    text-align: center;
+
+    font-size: 12px;
+
+    color: var(--red);
+}
+
+
+/* =========================================================
+   9. MAIN APPLICATION
+========================================================= */
+
+.app {
+    min-height: 100vh;
+}
+
+
+/* =========================================================
+   10. SIDEBAR
+========================================================= */
+
+.app aside {
+    width: 245px;
+
+    background: var(--navy);
+
+    position: fixed;
+
+    inset: 0 auto 0 0;
+
+    color: white;
+
+    display: flex;
+
+    flex-direction: column;
+}
+
+
+/* Sidebar SAF logo */
+
+.sidebrand {
+    padding: 22px;
+
+    color: white;
+
+    border-bottom: 1px solid #ffffff15;
+}
+
+.sidebrand b {
+    color: white;
+}
+
+
+/* Residence currently being managed */
+
+.res {
+    margin: 18px 13px;
+
+    padding: 12px;
+
+    background: #ffffff0b;
+
+    border-radius: 9px;
+
+    font-size: 9px;
+
+    color: #91a9c1;
+
+    line-height: 1.7;
+}
+
+.res strong {
+    font-size: 12px;
+
+    color: white;
+}
+
+
+/* =========================================================
+   11. SIDEBAR NAVIGATION
+========================================================= */
+
+nav {
+    padding: 0 10px;
+}
+
+nav a {
+    display: flex;
+
+    gap: 10px;
+
+    padding: 11px 13px;
+
+    color: #b8cbe0;
+
+    border-radius: 8px;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    margin: 3px 0;
+
+    cursor: pointer;
+}
+
+nav a:hover {
+    background: var(--blue);
+
+    color: white;
+}
+
+nav a.active {
+    background: var(--blue);
+
+    color: white;
+}
+
+
+/* Notification badge */
+
+nav i {
+    margin-left: auto;
+
+    background: #e34d59;
+
+    color: white;
+
+    border-radius: 20px;
+
+    padding: 2px 6px;
+
+    font-style: normal;
+
+    font-size: 9px;
+}
+
+
+/* =========================================================
+   12. SIDEBAR USER PROFILE
+========================================================= */
+
+.user {
+    margin-top: auto;
+
+    border-top: 1px solid #ffffff15;
+
+    padding: 14px;
+
+    display: flex;
+
+    gap: 8px;
+
+    align-items: center;
+
+    font-size: 11px;
+}
+
+.user small {
+    color: #91a9c1;
+
+    font-size: 9px;
+}
+
+.user button {
+    margin-left: auto;
+
+    background: none;
+
+    border: 0;
+
+    color: #b8cbe0;
+}
+
+
+/* =========================================================
+   13. MAIN CONTENT
+========================================================= */
+
+.main {
+    margin-left: 245px;
+}
+
+
+/* =========================================================
+   14. TOP HEADER
+========================================================= */
+
+.main header {
+    height: 68px;
+
+    background: white;
+
+    border-bottom: 1px solid var(--border);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 26px;
+
+    font-size: 12px;
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 5;
+}
+
+
+/* Mobile menu button */
+
+.main header button {
+    display: none;
+
+    border: 0;
+
+    background: none;
+
+    font-size: 20px;
+}
+
+
+/* =========================================================
+   15. PAGE CONTENT
+========================================================= */
+
+.main section {
+    padding: 28px;
+
+    max-width: 1400px;
+}
+
+
+/* Page heading */
+
+.head {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: flex-start;
+
+    margin-bottom: 20px;
+}
+
+.head h1 {
+    margin: 0 0 5px;
+
+    font-size: 25px;
+}
+
+.head p {
+    margin: 0;
+
+    color: var(--muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   16. BUTTONS
+========================================================= */
+
+.btn {
+    border: 0;
+
+    border-radius: 8px;
+
+    padding: 10px 14px;
+
+    font-size: 11px;
+
+    font-weight: 700;
+}
+
+
+/* Blue button */
+
+.blue {
+    background: var(--blue);
+
+    color: white;
+}
+
+.blue:hover {
+    background: #1258b1;
+}
+
+
+/* Light button */
+
+.light {
+    background: #edf4fc;
+
+    color: var(--navy);
+}
+
+.light:hover {
+    background: #dceafb;
+}
+
+
+/* Danger button */
+
+.danger {
+    background: #fff0f1;
+
+    color: var(--red);
+}
+
+.danger:hover {
+    background: #ffe0e3;
+}
+
+
+/* =========================================================
+   17. DASHBOARD STATISTICS
+========================================================= */
+
+.stats {
+    display: grid;
+
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 14px;
+
+    margin-bottom: 18px;
+}
+
+
+/* Individual statistic card */
+
+.stat,
+.card {
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 13px;
+
+    padding: 18px;
+
+    box-shadow: 0 8px 25px #17304f0b;
+}
+
+
+/* Small label */
+
+.stat small {
+    color: var(--muted);
+
+    font-size: 10px;
+}
+
+
+/* Number */
+
+.stat h2 {
+    margin: 7px 0;
+
+    font-size: 25px;
+}
+
+
+/* Green information */
+
+.green {
+    color: var(--green);
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   18. DASHBOARD COLUMNS
+========================================================= */
+
+.cols {
+    display: grid;
+
+    grid-template-columns: 1.3fr 1fr;
+
+    gap: 18px;
+}
+
+
+/* Card heading */
+
+.card h3 {
+    font-size: 14px;
+
+    margin: 0 0 15px;
+}
+
+
+/* =========================================================
+   19. OCCUPANCY BAR
+========================================================= */
+
+.bar {
+    height: 12px;
+
+    background: #edf1f5;
+
+    border-radius: 20px;
+
+    overflow: hidden;
+}
+
+.bar span {
+    display: block;
+
+    height: 100%;
+
+    background: linear-gradient(
+        90deg,
+        var(--cyan),
+        var(--blue)
+    );
+
+    width: 83%;
+}
+
+
+/* =========================================================
+   20. RECENT ACTIVITY
+========================================================= */
+
+.activity {
+    padding: 11px 0;
+
+    border-bottom: 1px solid var(--border);
+
+    font-size: 11px;
+}
+
+.activity small {
+    display: block;
+
+    color: var(--muted);
+
+    margin-top: 3px;
+}
+
+
+/* =========================================================
+   21. SEARCH / FILTERS
+========================================================= */
+
+.filters {
+    display: flex;
+
+    gap: 8px;
+
+    margin-bottom: 14px;
+}
+
+.filters input {
+    max-width: 320px;
+}
+
+
+/* =========================================================
+   22. TABLES
+========================================================= */
+
+.tablewrap {
+    overflow: auto;
+}
+
+.table {
+    width: 100%;
+
+    border-collapse: collapse;
+
+    min-width: 650px;
+}
+
+.table th,
+.table td {
+    padding: 12px;
+
+    border-bottom: 1px solid var(--border);
+
+    text-align: left;
+
+    font-size: 11px;
+}
+
+.table th {
+    background: #f8fafc;
+
+    color: var(--muted);
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   23. STATUS LABELS
+========================================================= */
+
+.status {
+    padding: 4px 8px;
+
+    border-radius: 20px;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    background: #fff5df;
+
+    color: #a96700;
+}
+
+
+/* Approved / paid / active */
+
+.approved,
+.paid,
+.active {
+    background: #e8f8f2;
+
+    color: #087e60;
+}
+
+
+/* Declined / overdue */
+
+.declined,
+.overdue {
+    background: #fff0f1;
+
+    color: #c43745;
+}
+
+
+/* In progress */
+
+.progress {
+    background: #eaf2ff;
+
+    color: #1761b9;
+}
+
+
+/* =========================================================
+   24. STUDENT DISPLAY
+========================================================= */
+
+.student {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+}
+
+
+/* Student avatar */
+
+.avatar {
+    width: 28px;
+
+    height: 28px;
+
+    border-radius: 50%;
+
+    background: #e4f6f6;
+
+    color: #087d83;
+
+    display: grid;
+
+    place-items: center;
+
+    font-size: 9px;
+
+    font-weight: 800;
+}
+
+
+/* Student name */
+
+.student strong {
+    display: block;
+
+    font-size: 10px;
+}
+
+
+/* Student number */
+
+.student small {
+    color: var(--muted);
+
+    font-size: 9px;
+}
+
+
+/* =========================================================
+   25. REPORT CARDS
+========================================================= */
+
+.reportgrid {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 15px;
+}
+
+
+/* =========================================================
+   26. TOAST NOTIFICATION
+========================================================= */
+
+#toast {
+    position: fixed;
+
+    right: 20px;
+
+    bottom: 20px;
+
+    background: var(--navy);
+
+    color: white;
+
+    padding: 12px 16px;
+
+    border-radius: 8px;
+
+    font-size: 11px;
+
+    display: none;
+
+    z-index: 100;
+}
+
+#toast.show {
+    display: block;
+}
+
+
+/* =========================================================
+   27. MODAL
+========================================================= */
+
+.modalback {
+    position: fixed;
+
+    inset: 0;
+
+    background: #00182c99;
+
+    display: grid;
+
+    place-items: center;
+
+    padding: 20px;
+
+    z-index: 50;
+}
+
+
+/* Modal box */
+
+.modal {
+    background: white;
+
+    width: min(650px, 100%);
+
+    padding: 22px;
+
+    border-radius: 15px;
+}
+
+
+/* Modal heading */
+
+.modalhead {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+}
+
+.modalhead h3 {
+    margin: 0;
+}
+
+.modalhead button {
+    border: 0;
+
+    background: #f1f4f7;
+
+    border-radius: 7px;
+
+    width: 30px;
+
+    height: 30px;
+
+    font-size: 18px;
+}
+
+
+/* Modal buttons */
+
+.modalactions {
+    display: flex;
+
+    justify-content: flex-end;
+
+    gap: 8px;
+
+    margin-top: 20px;
+}
+
+
+/* =========================================================
+   28. MOBILE RESPONSIVENESS
+========================================================= */
+
+@media (max-width: 900px) {
+
+    /*
+       Hide sidebar outside the screen
+       on smaller devices
+    */
+
+    .app aside {
+        transform: translateX(-100%);
+
+        transition: 0.2s;
+    }
+
+
+    /*
+       Show sidebar when the menu
+       button is clicked
+    */
+
+    .app aside.open {
+        transform: translateX(0);
+    }
+
+
+    /*
+       Main content takes full width
+    */
+
+    .main {
+        margin-left: 0;
+    }
+
+
+    /*
+       Show mobile menu button
+    */
+
+    .main header button {
+        display: block;
+    }
+
+
+    /*
+       Dashboard statistics
+    */
+
+    .stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+
+    /*
+       Dashboard columns become one column
+    */
+
+    .cols {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* =========================================================
+   29. SMALL MOBILE DEVICES
+========================================================= */
+
+@media (max-width: 600px) {
+
+    /*
+       Registration form
+    */
+
+    .grid2 {
+        grid-template-columns: 1fr;
+    }
+
+
+    /*
+       Dashboard statistics
+    */
+
+    .stats {
+        grid-template-columns: 1fr;
+    }
+
+
+    /*
+       Reports
+    */
+
+    .reportgrid {
+        grid-template-columns: 1fr;
+    }
+
+
+    /*
+       Reduce page padding
+    */
+
+    .main section {
+        padding: 18px;
+    }
+
+
+    /*
+       Page heading
+    */
+
+    .head {
+        display: block;
+    }
+
+
+    /*
+       Buttons under heading
+    */
+
+    .head .btn {
+        margin-top: 12px;
+    }
+
+
+    /*
+       Smaller authentication card
+    */
+
+    .auth-card {
+        padding: 23px;
+    }
+}

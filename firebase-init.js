@@ -17,12 +17,12 @@
  */
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAFBSwg5xNnkV8z0N0NAlBU6qEcv1auIO4",
+    authDomain: "studentaccomfinder-ff1e6.firebaseapp.com",
+    projectId: "studentaccomfinder-ff1e6",
+    storageBucket: "studentaccomfinder-ff1e6.firebasestorage.app",
+    messagingSenderId: "350059072410",
+    appId: "1:350059072410:web:a8ec3e8398349ad4028823""
 };
 
 firebase.initializeApp(firebaseConfig);

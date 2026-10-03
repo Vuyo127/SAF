@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Super Admin</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg">
+    <link rel="stylesheet" href="Style.css">
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="brand"><a href="dashboard.html"><span class="brand-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span><span>Super Admin Console</span></a></div>
+        <div class="user-info">
+            <span>Signed in as</span>
+            <span class="badge" id="currentRoleDisplay">Super Admin</span>
+            <div class="menu-container">
+                <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="navigationMenu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <nav class="sidebar">
+            <a href="dashboard.html" class="active" aria-current="page">Dashboard</a>
+            <a href="active.html">Active users</a>
+            <a href="deleted.html">Deleted accounts</a>
+            <a href="activity.html">Activity log</a>
+            <a href="Res.html">Registered residences</a>
+            <a href="RevRep.html">Reviews &amp; reports</a>
+            <a href="DataProcessing.html">Data processing</a>
+            <a href="Settings.html">Settings</a>
+            <a href="Reports.html">Reports</a>
+        </nav>
+
+        <div class="content">
+            <h1>Residence dashboard</h1>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Pending requests</div>
+                    <div class="stat-number" id="pendingCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Registered residences</div>
+                    <div class="stat-number" id="registeredResCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Highly rated</div>
+                    <div class="stat-number" id="highRatedCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Highly reported</div>
+                    <div class="stat-number" id="highReportedCount">0</div>
+                </div>
+            </div>
+
+            <div class="page-tabs" role="tablist" aria-label="Dashboard sections">
+                <button class="page-tab active" id="requestsTab" type="button" role="tab" aria-selected="true" aria-controls="requestsPanel">Residence requests <span class="tab-count" id="pendingTabCount">0</span></button>
+                <button class="page-tab" id="updatesTab" type="button" role="tab" aria-selected="false" aria-controls="updatesPanel">Problem updates <span class="tab-count" id="updatesTabCount">0</span></button>
+                <button class="page-tab" id="ownersTab" type="button" role="tab" aria-selected="false" aria-controls="ownersPanel">Residence owners <span class="tab-count" id="ownersTabCount">0</span></button>
+            </div>
+            <div id="requestsPanel" role="tabpanel" aria-labelledby="requestsTab">
+            <section class="card">
+                <h2>Residence requests</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Residence</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestTableBody"></tbody>
+                </table>
+                <p id="noRequestsMsg" class="empty-note hidden">No pending requests right now.</p>
+            </section>
+            </div>
+            <div id="updatesPanel" role="tabpanel" aria-labelledby="updatesTab" hidden>
+            <section class="card">
+                <h2>Residence problem updates</h2>
+                <ul id="resolutionNotifications" class="activity-log"></ul>
+                <p id="noNotifications" class="empty-note hidden">No resolution updates have been received.</p>
+            </section>
+            </div>
+            <div id="ownersPanel" role="tabpanel" aria-labelledby="ownersTab" hidden>
+            <section class="card">
+                <h2>Residence owners</h2>
+                <div class="table-scroll"><table><thead><tr><th>Owner</th><th>Properties</th><th>Verification</th><th>Action</th></tr></thead><tbody id="ownerTableBody"></tbody></table></div>
+                <p id="noOwners" class="empty-note hidden">No residence owners are registered yet.</p>
+            </section>
+            </div>
+
+            <footer>
+                Super Admin Console &middot; <span id="currentDate"></span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="Shared.js"></script>
+    <script>
+        requireAuthentication();
+
+        function renderDashboard() {
+            var requests = loadRequests();
+            var reses = loadReses();
+
+            document.getElementById('pendingCount').textContent = requests.length;
+            document.getElementById('pendingTabCount').textContent = requests.length;
+            document.getElementById('registeredResCount').textContent = reses.length;
+
+            var highlyRated = 0;
+            var highlyReported = 0;
+            for (var i = 0; i < reses.length; i++) {
+                if (reses[i].rating >= 4.5) highlyRated++;
+                if (reses[i].reports.length >= 3) highlyReported++;
+            }
+            document.getElementById('highRatedCount').textContent = highlyRated;
+            document.getElementById('highReportedCount').textContent = highlyReported;
+
+            renderRequests();
+        }
+
+        function renderRequests() {
+            var tbody = document.getElementById('requestTableBody');
+            var noMsg = document.getElementById('noRequestsMsg');
+            var requests = loadRequests();
+            tbody.innerHTML = '';
+
+            if (requests.length === 0) {
+                noMsg.classList.remove('hidden');
+                return;
+            }
+            noMsg.classList.add('hidden');
+
+            for (var i = 0; i < requests.length; i++) {
+                var r = requests[i];
+                var documentViewed = sessionStorage.getItem('residenceDocumentViewed_' + r.id) === 'true';
+                var residence = r.role === 'RES_OWNER'
+                    ? (r.residenceName || 'Residence name not provided')
+                    : '—';
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td>' + escapeHtml(r.name) + '</td>' +
+                    '<td>' + escapeHtml(r.email || emailForName(r.name)) + '</td>' +
+                    '<td>' + (r.role === 'RES_OWNER' ? '<details><summary>' + escapeHtml(residence) + '</summary><p><strong>Price:</strong> ' + escapeHtml(r.price || 'Not provided') + '</p><p><strong>Who can apply:</strong> ' + escapeHtml(Array.isArray(r.eligibleApplicants) ? r.eligibleApplicants.join(', ') : (r.eligibleApplicants || 'Not provided')) + '</p><p><strong>Room type:</strong> ' + escapeHtml(r.roomType || 'Not provided') + '</p><p><strong>Amenities:</strong> ' + escapeHtml(Array.isArray(r.amenities) ? r.amenities.join(', ') : (r.amenities || 'Not provided')) + '</p><p><strong>Description:</strong> ' + escapeHtml(r.description || r.condition || 'Not provided') + '</p></details>' : escapeHtml(residence)) + '</td>' +
+                    '<td>' +
+                        (r.role === 'RES_OWNER' ? '<button class="small secondary" onclick="viewRequestDocument(' + r.id + ')">View document</button>' : '') +
+                        (r.role === 'RES_OWNER' && !documentViewed ? '<button class="small approve" disabled>Approve</button><button class="small danger" disabled>Reject</button>' : '<button class="small approve" onclick="approveRequest(' + r.id + ')">Approve</button><button class="small danger" onclick="denyRequest(' + r.id + ')">Reject</button>') +
+                    '</td>';
+                tbody.appendChild(tr);
+            }
+        }
+
+        function renderNotifications() {
+            var updates = loadJSON('adminNotifications', []), list = document.getElementById('resolutionNotifications');
+            if (!Array.isArray(updates)) updates = [];
+            list.innerHTML = '';
+            document.getElementById('noNotifications').classList.toggle('hidden', updates.length !== 0);
+            document.getElementById('updatesTabCount').textContent = updates.length;
+            updates.forEach(function (item) {
+                var li = document.createElement('li'), details = document.createElement('details'), summary = document.createElement('summary'), text = document.createElement('p');
+                summary.textContent = formatTime(item.time) + ' · ' + item.text;
+                text.textContent = item.text;
+                details.appendChild(summary); details.appendChild(text);
+                if (item.residenceId) { var link = document.createElement('a'); link.href = 'Res.html#res-' + encodeURIComponent(item.residenceId); link.textContent = 'View residence'; details.appendChild(link); }
+                li.appendChild(details);
+                list.appendChild(li);
+            });
+        }
+
+        function renderOwners() {
+            var users = loadUsers().filter(function (user) { return user.role === 'RES_OWNER'; }), reses = loadReses(), groups = {};
+            users.forEach(function (user) { groups[String(user.id)] = { user: user, residences: [] }; });
+            reses.forEach(function (res) {
+                var owner = users.filter(function (user) { return user.email && user.email.toLowerCase() === String(res.ownerEmail || '').toLowerCase(); })[0];
+                if (owner) groups[String(owner.id)].residences.push(res);
+            });
+            var body = document.getElementById('ownerTableBody'); body.innerHTML = '';
+            var owners = Object.keys(groups).map(function (key) { return groups[key]; });
+            document.getElementById('noOwners').classList.toggle('hidden', owners.length !== 0);
+            document.getElementById('ownersTabCount').textContent = owners.length;
+            owners.forEach(function (group) {
+                var user = group.user, row = document.createElement('tr'), photo = getOwnerPhoto(user);
+                var props = group.residences.length ? group.residences.map(function (res) { return '<a href="Res.html#res-' + encodeURIComponent(String(res.id)) + '">' + escapeHtml(res.name) + '</a>'; }).join('<br>') : 'None listed';
+                row.innerHTML = '<td>' + (photo ? '<img class="owner-avatar" src="' + escapeHtml(photo) + '" alt="' + escapeHtml(user.name) + ' profile photo"> ' : '') + escapeHtml(user.name) + '</td><td><details><summary>' + group.residences.length + ' properties</summary>' + props + '</details></td><td>' + (user.ownerVerified ? '<span class="status status-approved">Verified Owner</span>' : 'Not verified') + '</td><td>' + (!user.ownerVerified && photo ? '<button class="small approve" data-owner-id="' + escapeHtml(String(user.id)) + '">Verify owner</button>' : (!photo && !user.ownerVerified ? '<span class="feedback-empty">Profile photo required</span>' : '')) + '</td>';
+                body.appendChild(row);
+            });
+            body.querySelectorAll('[data-owner-id]').forEach(function (button) { button.addEventListener('click', function () { verifyOwner(button.getAttribute('data-owner-id')); }); });
+        }
+
+        function verifyOwner(id) {
+            var users = loadUsers(), owner = users.filter(function (user) { return String(user.id) === String(id); })[0];
+            if (!owner || owner.role !== 'RES_OWNER' || !getOwnerPhoto(owner)) return;
+            owner.ownerVerified = true; saveUsers(users);
+            addLog('update', 'Verified residence owner **' + owner.name + '**', 'SUPER_ADMIN');
+            renderOwners();
+        }
+
+        function showDashboardTab(tab) {
+            var panels = { requests: 'requestsPanel', updates: 'updatesPanel', owners: 'ownersPanel' };
+            var tabs = { requests: 'requestsTab', updates: 'updatesTab', owners: 'ownersTab' };
+            Object.keys(panels).forEach(function (key) {
+                var active = key === tab;
+                document.getElementById(panels[key]).hidden = !active;
+                document.getElementById(tabs[key]).classList.toggle('active', active);
+                document.getElementById(tabs[key]).setAttribute('aria-selected', String(active));
+            });
+        }
+
+        function viewRequestDocument(id) {
+            var request = loadRequests().filter(function (item) { return item.id === id; })[0];
+            if (!request) return;
+            sessionStorage.setItem('residenceDocumentViewed_' + id, 'true');
+            renderRequests();
+            var old = document.getElementById('requestDocumentDialog'); if (old) old.remove();
+            var dialog = document.createElement('div'); dialog.id = 'requestDocumentDialog'; dialog.className = 'confirmation-overlay';
+            var photos = Array.isArray(request.photos) ? request.photos : [];
+            var photoHtml = photos.length ? photos.map(function (src, index) { return '<figure><img src="' + escapeHtml(src) + '" alt="Residence photo ' + (index + 1) + '"><figcaption>Residence photo ' + (index + 1) + '</figcaption></figure>'; }).join('') : '<p>No residence photos supplied.</p>';
+            dialog.innerHTML = '<div class="confirmation-dialog document-dialog" role="dialog" aria-modal="true" aria-labelledby="requestDocumentTitle"><button type="button" class="document-close" aria-label="Close">×</button><h2 id="requestDocumentTitle">Residence ownership review</h2><p><strong>Applicant:</strong> ' + escapeHtml(request.name) + '</p><p><strong>Residence:</strong> ' + escapeHtml(request.residenceName || 'Residence') + '</p><p><strong>Proof of ownership:</strong> ' + escapeHtml(request.proofOfOwnership || request.documents || 'Documents not supplied') + '</p><p><strong>Condition:</strong> ' + escapeHtml(request.condition || 'Condition details not supplied') + '</p><p><strong>Location:</strong> ' + escapeHtml(request.location || request.address || 'Location not supplied') + '</p><div class="document-photos">' + photoHtml + '</div></div>';
+            var amenities = Array.isArray(request.amenities) ? request.amenities.join(', ') : (request.amenities || 'Not provided');
+            var eligible = Array.isArray(request.eligibleApplicants) ? request.eligibleApplicants.join(', ') : (request.eligibleApplicants || 'Not provided');
+            var detailHtml = '<p><strong>Price:</strong> ' + escapeHtml(request.price || 'Not provided') + '</p><p><strong>Who can apply:</strong> ' + escapeHtml(eligible) + '</p><p><strong>Room type:</strong> ' + escapeHtml(request.roomType || 'Not provided') + '</p><p><strong>Amenities:</strong> ' + escapeHtml(amenities) + '</p><p><strong>Description:</strong> ' + escapeHtml(request.description || request.condition || 'Not provided') + '</p>';
+            dialog.querySelector('.document-dialog').innerHTML = dialog.querySelector('.document-dialog').innerHTML.replace('<p><strong>Proof of ownership:', detailHtml + '<p><strong>Proof of ownership:');
+            dialog.addEventListener('click', function (event) { if (event.target === dialog || event.target.closest('.document-close')) dialog.remove(); }); document.body.appendChild(dialog);
+        }
+
+        function approveRequest(id) {
+            var requests = loadRequests();
+            var target = null;
+            for (var i = 0; i < requests.length; i++) {
+                if (requests[i].id === id) { target = requests[i]; break; }
+            }
+            if (!target) return;
+            if (target.role === 'RES_OWNER' && sessionStorage.getItem('residenceDocumentViewed_' + id) !== 'true') return;
+
+            var users = loadUsers();
+            var targetEmail = String(target.email || emailForName(target.name)).toLowerCase();
+            var existingOwner = users.filter(function (user) { return String(user.email || '').toLowerCase() === targetEmail; })[0];
+            if (!existingOwner) users.push({ id: nextUserId(), name: target.name, email: target.email || emailForName(target.name), role: target.role, profilePhoto: getOwnerPhoto(target), ownerVerified: false });
+            else if (target.role === 'RES_OWNER' && !getOwnerPhoto(existingOwner) && getOwnerPhoto(target)) existingOwner.profilePhoto = getOwnerPhoto(target);
+            saveUsers(users);
+            if (target.role === 'RES_OWNER') {
+                var residenceId = Number(target.residenceId) || (3000 + Number(target.id));
+                var reses = loadReses();
+                if (!reses.some(function (res) { return String(res.id) === String(residenceId); })) {
+                    reses.push({ id: residenceId, name: target.residenceName || target.name + "'s Residence", ownerName: target.name, ownerEmail: target.email || emailForName(target.name), ownerPhone: target.ownerPhone || 'Not provided', address: target.location || target.address || '', price: target.price || '', eligibleApplicants: target.eligibleApplicants || [], roomType: target.roomType || '', amenities: target.amenities || [], description: target.description || target.condition || '', rating: 0, reviews: [], reports: [], status: 'Approved' });
+                    saveReses(reses);
+                }
+            }
+
+            var remaining = [];
+            for (var j = 0; j < requests.length; j++) {
+                if (requests[j].id !== id) remaining.push(requests[j]);
+            }
+            saveRequests(remaining);
+
+            addLog('signup', 'Approved **' + target.name + '** as ' + roleLabel(target.role), target.role);
+            renderDashboard();
+            renderOwners();
+        }
+
+        function denyRequest(id) {
+            var requests = loadRequests();
+            var target = null;
+            for (var i = 0; i < requests.length; i++) {
+                if (requests[i].id === id) { target = requests[i]; break; }
+            }
+            if (!target) return;
+            if (target.role === 'RES_OWNER' && sessionStorage.getItem('residenceDocumentViewed_' + id) !== 'true') return;
+
+            var remaining = [];
+            for (var j = 0; j < requests.length; j++) {
+                if (requests[j].id !== id) remaining.push(requests[j]);
+            }
+            saveRequests(remaining);
+            addLog('deny', 'Denied request from **' + target.name + '**', target.role);
+            renderDashboard();
+        }
+
+        setupTopbar();
+        seedDefaults();
+        setupFooterDate();
+        renderDashboard();
+        renderNotifications(); renderOwners();
+        window.addEventListener('superAdmin:notifications', renderNotifications);
+        window.addEventListener('storage', function (event) { if (event.key === 'adminNotifications' || event.key === 'users' || event.key === 'reses' || event.key === 'pendingRequests') { renderNotifications(); renderOwners(); renderDashboard(); } });
+        window.addEventListener('storage', function (event) { if (event.key === 'reses') renderDashboard(); });
+        document.getElementById('requestsTab').addEventListener('click', function () { showDashboardTab('requests'); });
+        document.getElementById('updatesTab').addEventListener('click', function () { showDashboardTab('updates'); });
+        document.getElementById('ownersTab').addEventListener('click', function () { showDashboardTab('owners'); });
+    </script>
+</body>
+</html>

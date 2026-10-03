@@ -17,12 +17,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
@@ -237,8 +240,13 @@ fun SignUpScreen(navController: NavController) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Student: Funding type dropdown (NSFAS / Bursary / Self-Funded)
                     if (role == "student") {
-                        FundingTypeDropdown(fundingType) { fundingType = it }
+                        FundingTypeDropdown(
+                            selected = fundingType,
+                            isError = hasSubmitted && fundingType.isEmpty(),
+                            onSelect = { fundingType = it }
+                        )
                         if (hasSubmitted && fundingType.isEmpty()) {
                             Text(
                                 "Funding type is required",
@@ -261,6 +269,7 @@ fun SignUpScreen(navController: NavController) {
                         }
                     }
 
+                    // Owner: business name
                     if (role == "owner") {
                         OutlinedTextField(
                             value = businessName,
@@ -415,22 +424,35 @@ fun openTermsPdf(context: Context) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Funding type dropdown. A transparent layer sits on top of the read-only text field
+ * so the tap is actually received and the menu opens.
+ */
 @Composable
-fun FundingTypeDropdown(selected: String, onSelect: (String) -> Unit) {
+fun FundingTypeDropdown(
+    selected: String,
+    isError: Boolean = false,
+    onSelect: (String) -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("Self-Funded", "NSFAS", "Bursary", "Scholarship", "Other")
+    var fieldWidth by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
+    val options = listOf("NSFAS", "Bursary", "Self-Funded")
 
-    Box {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onSizeChanged { fieldWidth = with(density) { it.width.toDp() } }
+    ) {
         OutlinedTextField(
             value = selected,
             onValueChange = {},
-            label = { Text("Funding Type") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true },
             readOnly = true,
+            label = { Text("Funding Type") },
+            isError = isError,
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
+            singleLine = true,
             trailingIcon = {
                 Icon(
                     Icons.Filled.ArrowDropDown,
@@ -439,10 +461,18 @@ fun FundingTypeDropdown(selected: String, onSelect: (String) -> Unit) {
                 )
             }
         )
+
+        
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { expanded = true }
+        )
+
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier.width(fieldWidth)
         ) {
             options.forEach { option ->
                 DropdownMenuItem(

@@ -220,11 +220,11 @@
             if (suspended) renderSuspendedResidences();
         }
 
-        setupTopbar();
-        seedDefaults();
-        setupFooterDate();
-        renderDeleted();
-        renderSuspendedResidences();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderDeleted();
+            renderSuspendedResidences();
+        })
         document.getElementById('accountsTab').addEventListener('click', function () { showDeletedTab('accounts'); });
         document.getElementById('suspendedTab').addEventListener('click', function () { showDeletedTab('suspended'); });
         window.addEventListener('storage', function (event) { if (event.key === 'reses') renderSuspendedResidences(); });

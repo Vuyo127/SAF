@@ -247,10 +247,11 @@
             if (isGraph) renderActivityDashboard();
         }
 
-        setupTopbar();
-        setupFooterDate();
-        renderLogs();
-        renderActivityDashboard();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderLogs();
+            renderActivityDashboard();
+        })
         document.getElementById('logTab').addEventListener('click', function () { showActivityTab('log'); });
         document.getElementById('graphTab').addEventListener('click', function () { showActivityTab('graph'); });
         document.getElementById('logDateFrom').addEventListener('change', renderLogs);

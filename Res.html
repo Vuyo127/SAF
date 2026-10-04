@@ -43,7 +43,10 @@
             var body = document.getElementById('registeredBody'); body.innerHTML = ''; document.getElementById('noRegistered').classList.toggle('hidden', reses.length !== 0);
             for (var j = 0; j < reses.length; j++) { var res = reses[j], row = document.createElement('tr'); row.id = 'res-' + res.id; row.innerHTML = '<td>' + escapeHtml(res.name) + '</td><td>#' + res.id + '</td><td>' + escapeHtml(res.ownerName) + '</td><td>' + contactCell(res) + '</td><td>' + phoneCell(res) + '</td><td><span class="status status-' + String(res.status || 'Approved').toLowerCase() + '">' + escapeHtml(res.status || 'Approved') + '</span></td>'; body.appendChild(row); }
         }
-        setupTopbar(); seedDefaults(); setupFooterDate(); renderRegistered();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderRegistered();
+        })
         if (window.location.hash) { var target = document.getElementById(decodeURIComponent(window.location.hash.slice(1))); if (target) { target.classList.add('linked-residence'); target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
         document.getElementById('resSearch').addEventListener('input', renderRegistered);
         document.getElementById('statusFilter').addEventListener('change', renderRegistered);

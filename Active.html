@@ -177,10 +177,10 @@
             });
         }
 
-        setupTopbar();
-        seedDefaults();
-        setupFooterDate();
-        renderActiveUsers();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderX();
+        })
     </script>
 </body>
 </html>

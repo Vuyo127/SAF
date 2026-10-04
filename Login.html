@@ -7,12 +7,10 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="shortcut icon" href="favicon.svg">
     <link rel="stylesheet" href="Style.css">
-
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
     <script src="firebase-init.js"></script>
-    <script src="Shared.js"></script>
 </head>
 <body class="login-page">
     <main class="auth-shell">
@@ -33,7 +31,7 @@
                     <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" aria-pressed="false">◉</button>
                 </div>
 
-                <button type="submit">Sign in</button>
+                <button type="submit" id="loginSubmit">Sign in</button>
                 <p class="auth-message" id="loginMessage" aria-live="polite"></p>
             </form>
         </section>
@@ -42,29 +40,27 @@
     <script src="Shared.js"></script>
     <script>
         (function () {
-            var savedAdmin = loadJSON('superAdminProfile', null) || {};
-            var credentials = {
-                name: 'Evidence Mogale',
-                email: 'superadmin8@gmail.com',
-                password: '@Superadmin8',
-                role: 'SUPER_ADMIN'
-            };
-            credentials.name = savedAdmin.name || credentials.name;
-            credentials.email = savedAdmin.email || credentials.email;
             var form = document.getElementById('loginForm');
-            var email = document.getElementById('email');
-            var password = document.getElementById('password');
+            var emailInput = document.getElementById('email');
+            var passwordInput = document.getElementById('password');
             var passwordToggle = document.getElementById('passwordToggle');
+            var submitButton = document.getElementById('loginSubmit');
             var message = document.getElementById('loginMessage');
 
-            if (getAuthenticatedUser()) {
-                window.location.replace('Dashboard.html');
-                return;
-            }
+            // Already signed in with an admin account? Skip straight to the dashboard.
+            auth.onAuthStateChanged(function (user) {
+                if (!user) return;
+                db.collection('users').doc(user.uid).get().then(function (doc) {
+                    var role = doc.exists ? doc.data().role : null;
+                    if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+                        window.location.replace('Dashboard.html');
+                    }
+                });
+            });
 
             passwordToggle.addEventListener('click', function () {
-                var showing = password.type === 'text';
-                password.type = showing ? 'password' : 'text';
+                var showing = passwordInput.type === 'text';
+                passwordInput.type = showing ? 'password' : 'text';
                 passwordToggle.textContent = showing ? '◉' : '◉̸';
                 passwordToggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
                 passwordToggle.setAttribute('aria-pressed', String(!showing));
@@ -72,28 +68,38 @@
 
             form.addEventListener('submit', function (event) {
                 event.preventDefault();
-                var enteredEmail = email.value.trim().toLowerCase();
-                var enteredPassword = password.value;
+                var enteredEmail = emailInput.value.trim();
+                var enteredPassword = passwordInput.value;
 
                 if (!enteredEmail || !enteredPassword) {
                     message.textContent = 'Enter your email address and password.';
-                    return;
-                }
-                if (enteredEmail !== credentials.email || enteredPassword !== credentials.password) {
-                    message.textContent = 'The email address or password is incorrect.';
-                    password.select();
+                    message.className = 'auth-message';
                     return;
                 }
 
-                saveJSON('superAdminSession', {
-                    name: credentials.name,
-                    email: credentials.email,
-                    role: credentials.role,
-                    signedInAt: new Date().toISOString()
-                });
-                seedDefaults();
-                addLog('login', 'Evidence Mogale signed in to the Super Admin Console', 'SUPER_ADMIN');
-                window.location.replace('Dashboard.html');
+                submitButton.disabled = true;
+                message.textContent = '';
+
+                auth.signInWithEmailAndPassword(enteredEmail, enteredPassword)
+                    .then(function (credential) {
+                        return db.collection('users').doc(credential.user.uid).get();
+                    })
+                    .then(function (doc) {
+                        var role = doc.exists ? doc.data().role : null;
+                        if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+                            auth.signOut();
+                            message.textContent = 'This account does not have admin console access.';
+                            submitButton.disabled = false;
+                            return;
+                        }
+                        addLog('login', (doc.data().fullName || enteredEmail) + ' signed in to the Super Admin Console', role);
+                        window.location.replace('Dashboard.html');
+                    })
+                    .catch(function (error) {
+                        message.textContent = 'The email address or password is incorrect.';
+                        passwordInput.select();
+                        submitButton.disabled = false;
+                    });
             });
         }());
     </script>

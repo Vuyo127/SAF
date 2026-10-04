@@ -35,7 +35,9 @@
         function pdfText(value) { return String(value).replace(/[^\x20-\x7E]/g, '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)'); }
         function buildPdf(lines) { var content = 'BT\n/F1 18 Tf\n50 760 Td\n(' + pdfText(lines[0]) + ') Tj\n/F1 10 Tf\n'; for (var i = 1; i < lines.length; i++) content += '0 -18 Td\n(' + pdfText(lines[i]) + ') Tj\n'; content += 'ET'; var objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>', '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']; var pdf = '%PDF-1.4\n', offsets = [0]; for (var j = 0; j < objects.length; j++) { offsets.push(pdf.length); pdf += (j + 1) + ' 0 obj\n' + objects[j] + '\nendobj\n'; } var xref = pdf.length; pdf += 'xref\n0 ' + (objects.length + 1) + '\n0000000000 65535 f \n'; for (var k = 1; k < offsets.length; k++) pdf += String(offsets[k]).padStart(10, '0') + ' 00000 n \n'; return pdf + 'trailer\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF'; }
         function downloadResidencePdf() { var reses = loadReses(), lines = ['Super Admin - Registered Residence Summary', 'Generated: ' + new Date().toLocaleString(), 'Registered residences: ' + reses.length, '']; for (var i = 0; i < reses.length && i < 34; i++) lines.push((i + 1) + '. ' + reses[i].name + ' - Owner: ' + reses[i].ownerName + ' - Rating: ' + Number(reses[i].rating).toFixed(1) + '/5'); if (reses.length > 34) lines.push('Additional residences are available in the CSV export.'); downloadFile(buildPdf(lines), 'residence-summary.pdf', 'application/pdf'); }
-        setupTopbar(); setupFooterDate();
+        onAdminReady(function(){
+            setupFooterDate();
+        })
     </script>
 </body>
 </html>

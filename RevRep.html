@@ -149,7 +149,12 @@
                 document.getElementById(tabs[key]).setAttribute('aria-selected', String(active));
             }
         }
-        setupTopbar(); seedDefaults(); setupFooterDate(); renderReviewsReports();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderHighRated();
+            renderHighReported();
+            renderReviewsReports();
+        })
         document.getElementById('ratedTab').addEventListener('click', function () { showResidenceTab('rated'); });
         document.getElementById('reportedTab').addEventListener('click', function () { showResidenceTab('reported'); });
         document.getElementById('resSearch').addEventListener('input', renderReviewsReports);

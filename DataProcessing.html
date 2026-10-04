@@ -61,7 +61,10 @@
                 renderAnalyses();
             });
         }
-        setupTopbar(); setupFooterDate(); renderAnalyses();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderAnalyses();
+        })
         if (loadJSON('systemSettings', {}).automaticAnalyses && !sessionStorage.getItem('dataCheckRunThisSession')) { sessionStorage.setItem('dataCheckRunThisSession', 'true'); startAnalysis(); }
     </script>
 </body>

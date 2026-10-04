@@ -288,11 +288,12 @@
             renderDashboard();
         }
 
-        setupTopbar();
-        seedDefaults();
-        setupFooterDate();
-        renderDashboard();
-        renderNotifications(); renderOwners();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderOwners();
+            renderRequests();
+            renderDashboard();
+        })
         window.addEventListener('superAdmin:notifications', renderNotifications);
         window.addEventListener('storage', function (event) { if (event.key === 'adminNotifications' || event.key === 'users' || event.key === 'reses' || event.key === 'pendingRequests') { renderNotifications(); renderOwners(); renderDashboard(); } });
         window.addEventListener('storage', function (event) { if (event.key === 'reses') renderDashboard(); });

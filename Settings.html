@@ -87,7 +87,10 @@
                 showSettingsMessage('Preferences reset to defaults.', true);
             });
         }
-        setupTopbar(); setupFooterDate(); renderSettings();
+        onAdminReady(function(){
+            setupFooterDate();
+            renderSettings();
+        })
     </script>
 </body>
 </html>

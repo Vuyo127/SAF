@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserRole() in ["SUPER_ADMIN", "ADMIN"];
+    }
+
+    // /users/{uid} — profile doc id must equal the auth uid
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // /listings/{listingId}
+    match /listings/{listingId} {
+      allow read: if true; // public browsing, even signed-out
+      allow create: if isAdmin() || (isSignedIn() && getUserRole() == "owner"
+                    && request.resource.data.ownerId == request.auth.uid);
+      allow update: if isAdmin() || (isSignedIn() && (
+                      resource.data.ownerId == request.auth.uid ||
+                      // allow the accept-application transaction to touch availableBeds only
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(["availableBeds"]) ||
+                      // allow postReview() to recompute rating/reviewCount after a new review
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(["rating", "reviewCount"])
+                    ));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // /applications/{applicationId}
+    match /applications/{applicationId} {
+      allow read: if isAdmin() || (isSignedIn() && (
+                    resource.data.studentId == request.auth.uid ||
+                    resource.data.ownerId == request.auth.uid
+                  ));
+      allow create: if isSignedIn() && getUserRole() == "student"
+                    && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // /reports/{reportId}
+    match /reports/{reportId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn(); // owner or admin marking as Resolved
+      allow delete: if isAdmin();
+    }
+
+    // /reviews/{reviewId}
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+    }
+
+    // /favorites/{studentId} — one doc per student, holding { listingIds: [...] }
+    match /favorites/{studentId} {
+      allow read, write: if isSignedIn() && request.auth.uid == studentId;
+    }
+
+    // /signupRequests/{requestId} — pending student/owner signups awaiting admin approval
+    match /signupRequests/{requestId} {
+      allow read, write: if isAdmin();
+      allow create: if true; // the public sign-up flow creates these before the user has an account
+    }
+
+    // /deletedAccounts/{id} — accounts an admin has removed, kept for restore
+    match /deletedAccounts/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // /activityLog/{id} — admin console + app activity feed
+    match /activityLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+  }
+}

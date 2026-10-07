@@ -253,12 +253,11 @@ function rebuildReses() {
         return listingDocToRes(listing, usersByUid[listing.ownerId]);
     });
     dispatchStorageEvent('reses');
-}
-
-function requestDocToCacheItem(doc) {
-    var data = doc.data();
-    if (!data.legacyId) data.legacyId = assignLegacyId('requests');
-    return Object.assign({ _docId: doc.id, id: data.legacyId }, data);
+    // Owners already have real accounts (self-service signup) by the time a
+    // listing exists, so "pending requests" is just listings awaiting review
+    // — no separate signupRequests collection or Cloud Function needed.
+    requestsCache = resesCache.filter(function (res) { return res.status === 'Pending'; });
+    dispatchStorageEvent('pendingRequests');
 }
 
 function deletedDocToCacheItem(doc) {
@@ -311,12 +310,6 @@ function startFirestoreSync() {
         rebuildReses();
     });
 
-    db.collection('signupRequests').onSnapshot(function (snapshot) {
-        requestsCache = snapshot.docs.map(requestDocToCacheItem);
-        maxLegacyId(requestsCache, 'requests');
-        dispatchStorageEvent('pendingRequests');
-    });
-
     db.collection('deletedAccounts').onSnapshot(function (snapshot) {
         deletedCache = snapshot.docs.map(deletedDocToCacheItem);
         maxLegacyId(deletedCache, 'deleted');
@@ -352,10 +345,10 @@ function saveUsers(list) {
                 legacyId: item.id
             }, { merge: true }).catch(function (e) { console.error('saveUsers update failed', e); });
         } else {
-            // New admin-created record with no Firestore doc / Firebase Auth account yet.
-            // This creates a Firestore profile only — it will NOT be able to log into
-            // the Android app until a real Firebase Auth account is provisioned (see
-            // functions/index.js for the proper way to do that from a signup request).
+            // Shouldn't normally happen — everyone already has a real account from
+            // self-service signup in the app by the time they show up here. Kept as
+            // a defensive fallback only; this creates a Firestore profile with no
+            // matching Firebase Auth login.
             db.collection('users').add({
                 fullName: item.name,
                 email: item.email || emailForName(item.name),
@@ -407,41 +400,40 @@ function saveReses(list) {
     });
 }
 
-/* ---------- Signup requests ("pendingRequests" <-> signupRequests collection) ---------- */
+/* ---------- "Requests" ---------- */
+/*
+ * Owners already have a real, working login by the time their residence shows
+ * up here (self-service signup in the Android app creates the Firebase Auth
+ * account immediately — admin never provisions logins). So a "request" is
+ * just a listing with status "Pending", derived from resesCache in
+ * rebuildReses() above. No separate collection, no Cloud Function, no Blaze
+ * plan needed — approving/denying is a plain Firestore update on /listings.
+ */
 
 function loadRequests() {
     return requestsCache.slice();
 }
 
-function saveRequests(list) {
-    var presentIds = {};
-    list.forEach(function (item) {
-        presentIds[item.id] = true;
-        var docId = item._docId;
-        var payload = Object.assign({}, item);
-        delete payload._docId;
-        if (docId) {
-            db.collection('signupRequests').doc(docId).set(payload, { merge: true }).catch(function (e) { console.error('saveRequests update failed', e); });
-        }
-    });
-    requestsCache.forEach(function (cached) {
-        if (!presentIds[cached.id]) {
-            db.collection('signupRequests').doc(cached._docId).delete().catch(function (e) { console.error('saveRequests delete failed', e); });
-        }
-    });
+/** Owner Dashboard's "Approve" button for a pending residence. */
+function approvePendingListing(res) {
+    var docId = res._docId || _listingDocIdByLegacyId[res.id];
+    return db.collection('listings').doc(docId).update({ status: 'Approved' });
+}
+
+/** Owner Dashboard's "Reject" button for a pending residence — removes the listing. */
+function rejectPendingListing(res) {
+    var docId = res._docId || _listingDocIdByLegacyId[res.id];
+    return db.collection('listings').doc(docId).delete();
 }
 
 /**
- * Approving a request in this console only creates/updates Firestore *data*
- * docs (a users profile doc, and for RES_OWNER a listing doc). It does NOT
- * create a Firebase Auth account the person can actually sign in with —
- * client-side code cannot provision another user's login without hijacking
- * the admin's own session. Call the `approveSignupRequest` Cloud Function
- * (see functions/index.js) to do that part properly.
+ * Admin cannot delete someone's Firebase Auth login from the browser (that
+ * genuinely needs a server). This is the free alternative: flag the profile
+ * disabled — security rules (see firestore.rules) then block that uid from
+ * writing anything, which is a working "soft ban" without any billing.
  */
-function callApproveSignupRequestFunction(requestId) {
-    var fn = firebase.functions().httpsCallable('approveSignupRequest');
-    return fn({ requestId: requestId });
+function disableUserAccount(docId, disabled) {
+    return db.collection('users').doc(docId).update({ disabled: !!disabled });
 }
 
 /* ---------- Deleted accounts ---------- */

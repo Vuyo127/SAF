@@ -236,56 +236,21 @@
         }
 
         function approveRequest(id) {
-            var requests = loadRequests();
-            var target = null;
-            for (var i = 0; i < requests.length; i++) {
-                if (requests[i].id === id) { target = requests[i]; break; }
-            }
+            var target = loadRequests().filter(functions (r) { return r.id === id; })[0];
             if (!target) return;
-            if (target.role === 'RES_OWNER' && sessionStorage.getItem('residenceDocumentViewed_' + id) !== 'true') return;
+            if (sessionStorage.getItem('residenceDocumentViewed_' + id) !== 'true') return;
+            approvePendingListing(target).then(function () {
+                addLog('signup', 'Approved **' + target.name + '**', 'RES_OWNER');
 
-            var users = loadUsers();
-            var targetEmail = String(target.email || emailForName(target.name)).toLowerCase();
-            var existingOwner = users.filter(function (user) { return String(user.email || '').toLowerCase() === targetEmail; })[0];
-            if (!existingOwner) users.push({ id: nextUserId(), name: target.name, email: target.email || emailForName(target.name), role: target.role, profilePhoto: getOwnerPhoto(target), ownerVerified: false });
-            else if (target.role === 'RES_OWNER' && !getOwnerPhoto(existingOwner) && getOwnerPhoto(target)) existingOwner.profilePhoto = getOwnerPhoto(target);
-            saveUsers(users);
-            if (target.role === 'RES_OWNER') {
-                var residenceId = Number(target.residenceId) || (3000 + Number(target.id));
-                var reses = loadReses();
-                if (!reses.some(function (res) { return String(res.id) === String(residenceId); })) {
-                    reses.push({ id: residenceId, name: target.residenceName || target.name + "'s Residence", ownerName: target.name, ownerEmail: target.email || emailForName(target.name), ownerPhone: target.ownerPhone || 'Not provided', address: target.location || target.address || '', price: target.price || '', eligibleApplicants: target.eligibleApplicants || [], roomType: target.roomType || '', amenities: target.amenities || [], description: target.description || target.condition || '', rating: 0, reviews: [], reports: [], status: 'Approved' });
-                    saveReses(reses);
-                }
-            }
-
-            var remaining = [];
-            for (var j = 0; j < requests.length; j++) {
-                if (requests[j].id !== id) remaining.push(requests[j]);
-            }
-            saveRequests(remaining);
-
-            addLog('signup', 'Approved **' + target.name + '** as ' + roleLabel(target.role), target.role);
-            renderDashboard();
-            renderOwners();
+            });
         }
-
         function denyRequest(id) {
-            var requests = loadRequests();
-            var target = null;
-            for (var i = 0; i < requests.length; i++) {
-                if (requests[i].id === id) { target = requests[i]; break; }
-            }
+            var target = loadRequests().filter(function (r) { return r.id === id;})[0];
             if (!target) return;
-            if (target.role === 'RES_OWNER' && sessionStorage.getItem('residenceDocumentViewed_' + id) !== 'true') return;
-
-            var remaining = [];
-            for (var j = 0; j < requests.length; j++) {
-                if (requests[j].id !== id) remaining.push(requests[j]);
-            }
-            saveRequests(remaining);
-            addLog('deny', 'Denied request from **' + target.name + '**', target.role);
-            renderDashboard();
+            if (sessionStorage.getItem('residenceDocumentViewed_' + id) !== 'true') return;
+            rejectPendingListing(target).then(function() {
+                addLog('deny', 'Denied request from **' + target.name + '**', 'RES_OWNER');
+            });
         }
 
         onAdminReady(function(){

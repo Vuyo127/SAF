@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in — Super Admin Console</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg">
+    <link rel="stylesheet" href="Style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="Shared.js"></script>
+</head>
+<body class="login-page">
+    <main class="auth-shell">
+        <div class="auth-brand">
+            <span class="auth-logo"><img src="SAF Logo.jpeg" alt="SAF Student Accommodation Finder logo"></span>
+            <span>Super Admin Console</span>
+        </div>
+
+        <section class="auth-card" aria-labelledby="loginTitle">
+            <h1 id="loginTitle">Welcome back</h1>
+            <!-- onsubmit="return false" is a safety net: even if the script below fails to load,
+                 the browser must never submit this form itself (that would put the password in the URL). -->
+            <form id="loginForm" novalidate method="post" onsubmit="return false;">
+                <label for="email">Email address</label>
+                <input id="email" name="email" type="email" autocomplete="username" required>
+
+                <label for="password">Password</label>
+                <div class="password-field">
+                    <input id="password" name="password" type="password" autocomplete="current-password" required>
+                    <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" aria-pressed="false">◉</button>
+                </div>
+
+                <button type="submit" id="loginSubmit">Sign in</button>
+                <p class="auth-message" id="loginMessage" aria-live="polite"></p>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            var form = document.getElementById('loginForm');
+            var emailInput = document.getElementById('email');
+            var passwordInput = document.getElementById('password');
+            var passwordToggle = document.getElementById('passwordToggle');
+            var submitButton = document.getElementById('loginSubmit');
+            var message = document.getElementById('loginMessage');
+
+            var firebaseReady = false;
+            var signingIn = false;
+
+            function showMessage(text) {
+                message.textContent = text;
+                message.className = 'auth-message';
+            }
+
+            function isAdminProfile(doc) {
+                if (!doc.exists) return false;
+                var data = doc.data();
+                return (data.role === 'SUPER_ADMIN' || data.role === 'ADMIN') && data.disabled !== true;
+            }
+
+            // Show / hide password. Needs no Firebase, so it is attached first.
+            passwordToggle.addEventListener('click', function () {
+                var showing = passwordInput.type === 'text';
+                passwordInput.type = showing ? 'password' : 'text';
+                passwordToggle.textContent = showing ? '◉' : '◉̸';
+                passwordToggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+                passwordToggle.setAttribute('aria-pressed', String(!showing));
+            });
+
+            // Attached BEFORE anything that can fail, so the form is always handled here.
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var enteredEmail = emailInput.value.trim();
+                var enteredPassword = passwordInput.value;
+
+                if (!enteredEmail || !enteredPassword) {
+                    showMessage('Enter your email address and password.');
+                    return;
+                }
+                if (!firebaseReady) {
+                    showMessage('Still connecting to Firebase - wait a moment and try again.');
+                    return;
+                }
+
+                submitButton.disabled = true;
+                signingIn = true;
+                showMessage('');
+
+                auth.signInWithEmailAndPassword(enteredEmail, enteredPassword)
+                    .then(function (credential) {
+                        return db.collection('users').doc(credential.user.uid).get();
+                    })
+                    .then(function (doc) {
+                        if (!isAdminProfile(doc)) {
+                            signingIn = false;
+                            auth.signOut();
+                            showMessage(doc.exists
+                                ? 'This account does not have admin console access.'
+                                : 'You signed in, but there is no admin profile for this account. Create a users/<uid> document with role "SUPER_ADMIN" in Firestore.');
+                            submitButton.disabled = false;
+                            return;
+                        }
+                        // Wait for the log entry to save, or the redirect can cancel the write.
+                        return addLogAsync('login', (doc.data().fullName || enteredEmail) + ' signed in to the Super Admin Console', doc.data().role)
+                            .catch(function () {})
+                            .then(function () { window.location.replace('Dashboard.html'); });
+                    })
+                    .catch(function (error) {
+                        signingIn = false;
+                        var code = error && error.code ? error.code : '';
+                        var badCredentials = ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'];
+                        if (badCredentials.indexOf(code) !== -1) {
+                            showMessage('The email address or password is incorrect.');
+                            passwordInput.select();
+                        } else if (code === 'permission-denied') {
+                            showMessage('Signed in, but Firestore refused to read your profile (permission-denied). Deploy firestore.rules, then try again.');
+                        } else {
+                            console.error('Sign-in failed', error);
+                            showMessage('Sign-in failed (' + (code || (error && error.message) || 'unknown error') + '). Open the browser console (F12) for details.');
+                        }
+                        submitButton.disabled = false;
+                    });
+            });
+
+            if (typeof ensureFirebase !== 'function') {
+                showMessage('Shared.js did not load. Check it is in the same folder as this page.');
+                return;
+            }
+
+            ensureFirebase().then(function () {
+                firebaseReady = true;
+                // Already signed in as an admin (e.g. you come back later)? Go straight in.
+                // Not signed in: do nothing and stay here. (Redirecting to Login.html from
+                // Login.html is what made this page reload forever.)
+                auth.onAuthStateChanged(function (user) {
+                    if (!user || signingIn) return;
+                    db.collection('users').doc(user.uid).get().then(function (doc) {
+                        if (isAdminProfile(doc)) window.location.replace('Dashboard.html');
+                    }).catch(function () {});
+                });
+            }).catch(function (error) {
+                console.error('Firebase failed to start', error);
+                showMessage('Could not start Firebase: ' + (error && error.message ? error.message : error));
+            });
+        }());
+    </script>
+</body>
+</html>

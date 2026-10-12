@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserRole() in ["SUPER_ADMIN", "ADMIN"];
+    }
+
+    // True once an admin has set `disabled: true` on this uid's profile.
+    // There's no way to revoke a Firebase Auth login without a server, so
+    // this is the free "soft ban": the account can still sign in, but every
+    // rule below that checks isNotDisabled() refuses to let it read/write.
+    function isNotDisabled() {
+      return !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.disabled != true;
+    }
+
+    // /users/{uid} — profile doc id must equal the auth uid
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && isNotDisabled());
+      allow delete: if isAdmin();
+    }
+
+    // /listings/{listingId}
+    match /listings/{listingId} {
+      allow read: if true; // public browsing, even signed-out
+      allow create: if isAdmin() || (isSignedIn() && isNotDisabled() && getUserRole() == "owner"
+                    && request.resource.data.ownerId == request.auth.uid);
+      allow update: if isAdmin() || (isSignedIn() && (
+                      resource.data.ownerId == request.auth.uid ||
+                      // allow the accept-application transaction to touch availableBeds only
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(["availableBeds"]) ||
+                      // allow postReview() to recompute rating/reviewCount after a new review
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(["rating", "reviewCount"])
+                    ));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
+    // /applications/{applicationId}
+    match /applications/{applicationId} {
+      allow read: if isAdmin() || (isSignedIn() && (
+                    resource.data.studentId == request.auth.uid ||
+                    resource.data.ownerId == request.auth.uid
+                  ));
+      allow create: if isSignedIn() && isNotDisabled() && getUserRole() == "student"
+                    && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // /reports/{reportId}
+    match /reports/{reportId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn(); // owner or admin marking as Resolved
+      allow delete: if isAdmin();
+    }
+
+    // /reviews/{reviewId}
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isNotDisabled() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+    }
+
+    // /favorites/{studentId} — one doc per student, holding { listingIds: [...] }
+    match /favorites/{studentId} {
+      allow read, write: if isSignedIn() && request.auth.uid == studentId;
+    }
+
+    // /deletedAccounts/{id} — accounts an admin has removed, kept for restore
+    match /deletedAccounts/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // /activityLog/{id} — admin console + app activity feed
+    match /activityLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+  }
+}
